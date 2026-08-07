@@ -2,9 +2,9 @@
  * 画面の組み立てと進行。重い列挙は Worker に投げ、判定と描画はここで行う。
  */
 
-import { BoardView } from './board.js?v=202608072141';
-import { HistogramView } from './histogram.js?v=202608072141';
-import { Sound } from './audio.js?v=202608072141';
+import { BoardView } from './board.js?v=202608072151';
+import { HistogramView } from './histogram.js?v=202608072151';
+import { Sound } from './audio.js?v=202608072151';
 import {
   START_SECONDS,
   Run,
@@ -16,14 +16,14 @@ import {
   newRunSeed,
   saveBest,
   scoreFor,
-} from './game.js?v=202608072141';
+} from './game.js?v=202608072151';
 import {
   bonusSecondsFor,
   buildStage,
   makeRng,
   placementFor,
   windowRatioFor,
-} from './generator.js?v=202608072141';
+} from './generator.js?v=202608072151';
 import {
   JUDGE_IN,
   JUDGE_LONG,
@@ -35,7 +35,7 @@ import {
   histogramBins,
   judge,
   pathLength,
-} from './enumerate.js?v=202608072141';
+} from './enumerate.js?v=202608072151';
 
 const $ = (id) => document.getElementById(id);
 
@@ -135,7 +135,7 @@ const fallback = {
 function createEngine() {
   let worker = null;
   try {
-    worker = new Worker(new URL('./enumerate.worker.js?v=202608072141', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./enumerate.worker.js?v=202608072151', import.meta.url), { type: 'module' });
   } catch (err) {
     console.warn('Worker を作れませんでした。メインスレッドで計算します。', err);
     return fallback;

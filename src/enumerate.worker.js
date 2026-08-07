@@ -10,7 +10,7 @@ import {
   enumerateSortedLengths,
   findPathByLength,
   histogramBins,
-} from './enumerate.js?v=202608072141';
+} from './enumerate.js?v=202608072151';
 
 self.onmessage = (event) => {
   const msg = event.data;

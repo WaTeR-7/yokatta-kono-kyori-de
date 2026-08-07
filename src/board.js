@@ -3,7 +3,7 @@
  * 点は [0,1]^2 の正規化座標で受け取り、キャンバス内の正方領域に等倍で写す。
  */
 
-import { readPalette } from './theme.js?v=202608072141';
+import { readPalette } from './theme.js?v=202608072151';
 
 const PALETTE = {
   nowRgb: '--now-rgb',

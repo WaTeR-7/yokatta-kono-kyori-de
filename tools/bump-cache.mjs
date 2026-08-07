@@ -40,7 +40,10 @@ function rewrite(file, replacer) {
 
 rewrite('index.html', (text) => text
   .replace(/(<link rel="stylesheet" href=")([^"]+?)(">)/g, (_, a, path, b) => a + stamp(path) + b)
-  .replace(/(<script type="module" src=")([^"]+?)(">)/g, (_, a, path, b) => a + stamp(path) + b));
+  .replace(/(<script type="module" src=")([^"]+?)(">)/g, (_, a, path, b) => a + stamp(path) + b)
+  // SNS はカード画像を強くキャッシュするので、URL を変えないと差し替わらない
+  .replace(/((?:og|twitter):image" content=")([^"]+?og\.png)(\?v=[\w.-]+)?(")/g,
+    (_, a, path, __, b) => a + stamp(path) + b));
 
 for (const name of readdirSync(join(root, 'src'))) {
   if (!name.endsWith('.js')) continue;

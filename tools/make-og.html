@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>OG カード生成</title>
+<!--
+  SNS 用のカード画像 (1200x630) を作るためのページ。
+  ゲーム本体の描画クラスをそのまま使うので、盤面も分布も実際に生成されたもの。
+
+  使い方:
+    python3 -m http.server
+    chrome --headless --window-size=1200,630 --screenshot=og.png \
+           http://localhost:8000/tools/make-og.html
+-->
+<link rel="stylesheet" href="../style.css">
+<style>
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body { display: block; padding: 0; }
+
+  #card {
+    width: 1200px;
+    height: 630px;
+    display: flex;
+    align-items: center;
+    gap: 54px;
+    padding: 0 64px;
+    background: var(--bg);
+  }
+
+  .left { flex: 1; min-width: 0; }
+
+  .card-title {
+    display: inline-block;
+    background: var(--band);
+    color: #fff;
+    font-weight: 800;
+    font-size: 68px;
+    line-height: 1.18;
+    letter-spacing: 0.02em;
+    padding: 14px 28px;
+    border-radius: 9px;
+    margin: 0 0 26px;
+  }
+
+  .card-tagline {
+    font-size: 27px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    margin: 0 0 30px;
+    font-weight: 600;
+  }
+
+  .card-tagline em { color: var(--now); font-style: normal; font-weight: 800; }
+
+  .card-dist {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px 18px 12px;
+  }
+
+  .card-dist-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .card-dist-label { font-size: 15px; font-weight: 700; color: var(--band); }
+  .card-dist-now {
+    font-family: var(--mono);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--now);
+  }
+
+  #hist { display: block; width: 100%; height: 96px; }
+
+  .card-url {
+    margin-top: 26px;
+    font-family: var(--mono);
+    font-size: 19px;
+    color: var(--text-faint);
+  }
+
+  .board-frame {
+    width: 470px;
+    height: 470px;
+    flex: none;
+    background: var(--bg-sunken);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  #board { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<div id="card">
+  <div class="left">
+    <h1 class="card-title">良かった<br>この距離で</h1>
+    <p class="card-tagline">最短でも最長でもない、<br><em>ちょうどこの距離</em>を狙うパズル。</p>
+    <div class="card-dist">
+      <div class="card-dist-head">
+        <span class="card-dist-label" id="quest">第 — 〜 — 位</span>
+        <span class="card-dist-now" id="now">—</span>
+      </div>
+      <canvas id="hist"></canvas>
+    </div>
+    <div class="card-url">water-7.github.io/yokatta-kono-kyori-de</div>
+  </div>
+  <div class="board-frame"><canvas id="board"></canvas></div>
+</div>
+
+<script type="module">
+import { BoardView } from '../src/board.js';
+import { HistogramView } from '../src/histogram.js';
+import { buildStage, windowRatioFor, placementFor, makeRng } from '../src/generator.js';
+import {
+  buildBand,
+  buildDistanceMatrix,
+  canonicalPathLength,
+  enumerateSortedLengths,
+  findPathByLength,
+  histogramBins,
+} from '../src/enumerate.js';
+
+// カードには「帯に入っている状態」を出したいので、帯の中央の経路を復元して描く
+const STAGE = 9;
+const RUN_SEED = 20260808;
+
+const stage = buildStage(RUN_SEED, STAGE);
+const dist = buildDistanceMatrix(stage.points);
+const sorted = enumerateSortedLengths(dist, stage.n);
+const bins = histogramBins(sorted, Math.min(240, Math.round(Math.sqrt(sorted.length) * 1.5)));
+
+const rng = makeRng((stage.seed ^ 0x5bf03635) >>> 0);
+const { lo, hi } = buildBand(sorted, windowRatioFor(STAGE), rng, placementFor(STAGE));
+const center = (lo + hi) >> 1;
+const example = findPathByLength(dist, stage.n, sorted[center]);
+const length = canonicalPathLength(dist, stage.n, example);
+
+const board = new BoardView(document.getElementById('board'));
+board.setStage(stage.points);
+board.setOrder(example);
+
+const histogram = new HistogramView(document.getElementById('hist'));
+histogram.setData({ sorted, binCounts: bins.counts, min: bins.min, max: bins.max, bandLo: lo, bandHi: hi });
+histogram.setCurrent(length, true);
+
+const fmt = new Intl.NumberFormat('ja-JP');
+document.getElementById('quest').textContent = `第 ${fmt.format(lo + 1)} 〜 ${fmt.format(hi + 1)} 位`;
+document.getElementById('now').textContent = length.toFixed(2);
+
+// パルスを止めた状態で数フレーム描いて確定させる
+board.step(0);
+for (let i = 0; i < 3; i++) {
+  board.render();
+  histogram.render();
+}
+document.title = 'ready';
+</script>
+</body>
+</html>

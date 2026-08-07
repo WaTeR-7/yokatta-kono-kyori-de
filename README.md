@@ -169,6 +169,10 @@ n=11 はモバイルで現実的でないため、**n の上限は 10** とし�
 node test/verify.mjs      # 検証スクリプト（55 項目）
 python3 -m http.server    # http://localhost:8000/ で起動
 node tools/bump-cache.mjs # 公開前にキャッシュ用のバージョンを打ち直す
+
+# SNS カード画像 (og.png) の作り直し
+chrome --headless --window-size=1200,630 \
+       --screenshot=og.png http://localhost:8000/tools/make-og.html
 ```
 
 ### 公開前に必ず bump する
