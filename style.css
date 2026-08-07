@@ -333,12 +333,17 @@ body {
   to { opacity: 1; transform: none; }
 }
 
+/* 元ネタの字幕にならって、紫地に白抜き */
 .title {
-  font-size: clamp(32px, 11vw, 46px);
-  line-height: 1.15;
-  margin: 0 0 12px;
+  display: inline-block;
+  font-size: clamp(30px, 10vw, 44px);
+  line-height: 1.2;
+  margin: 0 0 14px;
+  padding: 10px 20px;
   letter-spacing: 0.02em;
-  color: var(--band);
+  color: #fff;
+  background: var(--band);
+  border-radius: 6px;
   font-weight: 800;
 }
 
@@ -413,13 +418,17 @@ body {
 }
 
 .judge-verdict {
-  font-size: clamp(26px, 8vw, 40px);
+  display: inline-block;
+  font-size: clamp(24px, 7.4vw, 38px);
   font-weight: 800;
   line-height: 1.25;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  padding: 6px 18px;
+  border-radius: 5px;
 }
 
-.judge-verdict.in { color: var(--band); }
+/* 成功時だけは元ネタの字幕と同じ紫地に白抜き */
+.judge-verdict.in { color: #fff; background: var(--band); }
 .judge-verdict.short { color: var(--short); }
 .judge-verdict.long { color: var(--long); }
 

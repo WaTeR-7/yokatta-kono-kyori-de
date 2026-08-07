@@ -28,6 +28,7 @@ export class HistogramView {
     this.height = 1;
     this.data = null;
     this.current = null;
+    this.complete = false;
     this.resize();
   }
 
@@ -61,21 +62,28 @@ export class HistogramView {
       bandMax: sorted[bandHi],
     };
     this.current = null;
+    this.complete = false;
   }
 
   clear() {
     this.data = null;
     this.current = null;
+    this.complete = false;
   }
 
-  /** 全点をつなぎ終えたときだけマーカーを出す。途中経過は比較対象にならない。 */
-  setCurrent(length) {
+  /**
+   * 現在の経路長。途中の経路でもマーカーを出し、確定したものとは描き分ける。
+   * 途中経過は全経路と比べられる値ではないが、点を足すたびにマーカーが右へ動くので
+   * 「あとどれくらい伸ばせばいいか」が掴める。
+   */
+  setCurrent(length, complete = false) {
     this.current = length;
+    this.complete = complete;
   }
 
-  /** 帯に対する現在位置。'short' | 'long' | 'in' | null */
+  /** 帯に対する現在位置。確定した経路にだけ意味がある。'short' | 'long' | 'in' | null */
   get status() {
-    if (!this.data || this.current == null) return null;
+    if (!this.data || this.current == null || !this.complete) return null;
     if (this.current < this.data.bandMin) return 'short';
     if (this.current > this.data.bandMax) return 'long';
     return 'in';
@@ -93,7 +101,7 @@ export class HistogramView {
     this.#drawBars();
     this.#drawBand(toX(d.bandMin), toX(d.bandMax));
     this.#drawBaseline();
-    if (this.current != null) this.#drawNow(toX(this.current));
+    if (this.current != null) this.#drawMarker(toX(this.current), this.complete);
   }
 
   #drawBars() {
@@ -140,24 +148,56 @@ export class HistogramView {
     ctx.stroke();
   }
 
-  #drawNow(x) {
+  /**
+   * 現在位置のマーカー。
+   * 確定した経路は実線＋塗りつぶし、途中の経路は破線＋白抜きにして区別する。
+   * 途中の経路は分布の左端より短いことが多いので、その場合は左端に寄せて示す。
+   */
+  #drawMarker(x, complete) {
     const { ctx, width, height } = this;
+    const offScale = x < 4 || x > width - 4;
     const clamped = Math.max(6, Math.min(width - 6, x));
+
     ctx.save();
     ctx.strokeStyle = this.colors.now;
-    ctx.lineWidth = 2;
+    ctx.fillStyle = this.colors.now;
+    if (!complete) {
+      ctx.globalAlpha = 0.7;
+      ctx.setLineDash([4, 3]);
+    }
+
+    ctx.lineWidth = complete ? 2 : 1.5;
     ctx.beginPath();
     ctx.moveTo(clamped, 0);
     ctx.lineTo(clamped, height);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    ctx.fillStyle = this.colors.now;
+    // 分布の外側にいる途中経路は、その向きの三角で示す
+    if (offScale && !complete) {
+      const dir = x < 4 ? -1 : 1;
+      const y = height / 2;
+      ctx.beginPath();
+      ctx.moveTo(clamped + dir * 6, y);
+      ctx.lineTo(clamped - dir * 4, y - 6);
+      ctx.lineTo(clamped - dir * 4, y + 6);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
     ctx.beginPath();
     ctx.moveTo(clamped, 8);
     ctx.lineTo(clamped - 5.5, 0);
     ctx.lineTo(clamped + 5.5, 0);
     ctx.closePath();
-    ctx.fill();
+    if (complete) {
+      ctx.fill();
+    } else {
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }

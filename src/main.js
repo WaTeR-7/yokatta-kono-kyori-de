@@ -308,15 +308,19 @@ function refreshPath() {
   const complete = order.length === stage.n;
 
   if (order.length >= 2) {
-    const partial = pathLength(dist, stage.n, order);
-    el.distNow.textContent = complete ? partial.toFixed(2) : `${partial.toFixed(2)}…`;
-    el.distNow.style.opacity = complete ? '1' : '0.5';
+    // 確定したときだけ正規化する。列挙側とビット単位で一致させる必要があるのは
+    // 判定に使う値だけで、途中経過は表示専用。
+    const length = complete
+      ? canonicalPathLength(dist, stage.n, order)
+      : pathLength(dist, stage.n, order);
+    el.distNow.textContent = complete ? length.toFixed(2) : `${length.toFixed(2)}…`;
+    el.distNow.style.opacity = complete ? '1' : '0.65';
+    histogram.setCurrent(length, complete);
   } else {
     el.distNow.textContent = '—';
     el.distNow.style.opacity = '0.5';
+    histogram.setCurrent(null);
   }
-
-  histogram.setCurrent(complete ? canonicalPathLength(dist, stage.n, order) : null);
 
   // 帯は細くなると線として見づらいので、位置関係は文字でも伝える
   const status = histogram.status;
