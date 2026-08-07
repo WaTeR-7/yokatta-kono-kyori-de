@@ -53,34 +53,39 @@ export function generatePoints(n, seed) {
 }
 
 /**
- * 難易度テーブル。
+ * 難易度テーブル。1 段につき 1 ステージ。
  *
  * 難易度は「順位の幅」ではなく **目標の長さの窓が分布全体の何割か** で定義する。
- * 同じ順位幅でも分布の中央は裾より長さの窓が 2〜3 倍狭く、体感difficultyが
+ * 同じ順位幅でも分布の中央は裾より長さの窓が 2〜3 倍狭く、体感の難しさが
  * 問ごとにばらついてしまうため。順位幅の方を毎回逆算する。
  *
  * window は、辺を 1 本入れ替えたときの長さの変化量（n=8 で中央値 0.52、
  * n=10 で 0.33）に対して十分な余裕があるように決めている。
  *
+ * 以前は 2 ステージずつ進めていたが、それだと n=10 に届くのがステージ 19 で、
+ * 18 問正解しないと最大サイズを一度も見られなかった。
+ *
  * bonus は正解したときに増える秒数。
  */
 export const LADDER = [
-  { upTo: 2, n: 5, window: 0.300, bonus: 12 },
-  { upTo: 4, n: 6, window: 0.220, bonus: 14 },
-  { upTo: 6, n: 6, window: 0.160, bonus: 15 },
-  { upTo: 8, n: 7, window: 0.120, bonus: 17 },
-  { upTo: 10, n: 7, window: 0.090, bonus: 18 },
-  { upTo: 12, n: 8, window: 0.070, bonus: 20 },
-  { upTo: 14, n: 8, window: 0.055, bonus: 22 },
-  { upTo: 16, n: 9, window: 0.040, bonus: 24 },
-  { upTo: 18, n: 9, window: 0.030, bonus: 26 },
-  { upTo: 20, n: 10, window: 0.022, bonus: 28 },
-  { upTo: 22, n: 10, window: 0.016, bonus: 30 },
-  { upTo: Infinity, n: 10, window: 0.012, bonus: 32 },
+  { upTo: 1, n: 5, window: 0.300, bonus: 12 },
+  { upTo: 2, n: 5, window: 0.260, bonus: 13 },
+  { upTo: 3, n: 6, window: 0.220, bonus: 15 },
+  { upTo: 4, n: 6, window: 0.180, bonus: 16 },
+  { upTo: 5, n: 7, window: 0.150, bonus: 18 },
+  { upTo: 6, n: 7, window: 0.120, bonus: 20 },
+  { upTo: 7, n: 8, window: 0.100, bonus: 22 },
+  { upTo: 8, n: 8, window: 0.080, bonus: 24 },
+  { upTo: 9, n: 9, window: 0.065, bonus: 26 },
+  { upTo: 10, n: 9, window: 0.050, bonus: 28 },
+  { upTo: 11, n: 10, window: 0.040, bonus: 30 },
+  { upTo: 12, n: 10, window: 0.030, bonus: 32 },
+  { upTo: 13, n: 10, window: 0.022, bonus: 34 },
+  { upTo: Infinity, n: 10, window: 0.016, bonus: 36 },
 ];
 
 /** ここから先は窓が締まり続ける。上手い人でもいつか時間が尽きるように。 */
-const ENDLESS_FROM = 23;
+const ENDLESS_FROM = 14;
 const ENDLESS_DECAY = 0.93;
 const WINDOW_FLOOR = 0.002;
 
@@ -114,7 +119,7 @@ export function bonusSecondsFor(stage) {
  * 経路が最も密集するのは中央（最頻値）付近で、そこに広い窓を置くのが一番易しい。
  */
 export function placementFor(stage) {
-  const t = Math.min(1, Math.max(0, (stage - 1) / 9));
+  const t = Math.min(1, Math.max(0, (stage - 1) / 7));
   const half = 0.15 + 0.30 * t;
   return { lo: 0.5 - half, hi: 0.5 + half };
 }

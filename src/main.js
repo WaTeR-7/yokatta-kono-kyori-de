@@ -475,6 +475,12 @@ el.board.addEventListener('pointerdown', (event) => {
   refreshPath();
 });
 
+// touch-action だけでは iOS がダブルタップ拡大を残すことがあるので、
+// 盤面上の touchend と dblclick を潰しておく。pointerdown はこれより先に
+// 発火しているので、入力処理には影響しない。
+el.board.addEventListener('touchend', (event) => event.preventDefault(), { passive: false });
+el.board.addEventListener('dblclick', (event) => event.preventDefault());
+
 el.btnUndo.addEventListener('click', () => {
   if (state.phase !== 'playing' || !state.order.length) return;
   sound.unlock();
