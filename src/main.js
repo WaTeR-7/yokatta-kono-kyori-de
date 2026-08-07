@@ -388,7 +388,8 @@ function showJudge(verdict, gain, seconds) {
   el.judgeVerdict.className = `judge-verdict ${verdict}`;
   el.judgeVerdict.innerHTML = inBand
     ? '良かったこの距離で'
-    : `そこは・・・<span class="miss">${verdict === JUDGE_LONG ? '長すぎる' : '短すぎる'}</span>`;
+    : '<span class="say">そこは・・・</span>'
+      + `<span class="miss">${verdict === JUDGE_LONG ? '長すぎる' : '短すぎる'}</span>`;
 
   el.judgeTime.className = `judge-time ${seconds >= 0 ? 'plus' : 'minus'}`;
   el.judgeTime.textContent = `${seconds >= 0 ? '+' : '−'}${Math.abs(seconds)} 秒`;
