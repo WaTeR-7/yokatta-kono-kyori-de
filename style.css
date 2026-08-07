@@ -283,6 +283,16 @@ body {
 
 .btn-primary:hover:not(:disabled) { background: #6d28d9; }
 
+/* ゲーム中に押すボタンは、自分が引いた辺と同じ色にする */
+.btn-go {
+  background: var(--now);
+  border-color: var(--now);
+  color: #fff;
+  font-weight: 700;
+}
+
+.btn-go:hover:not(:disabled) { background: #0f766e; }
+
 .btn-share { background: #1b1d26; border-color: #1b1d26; color: #fff; font-weight: 700; }
 .btn-share:hover { background: #000; }
 
