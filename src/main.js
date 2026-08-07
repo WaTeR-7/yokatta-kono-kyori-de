@@ -35,7 +35,6 @@ import {
   histogramBins,
   judge,
   pathLength,
-  rankOf,
 } from './enumerate.js';
 
 const $ = (id) => document.getElementById(id);
@@ -51,8 +50,6 @@ const el = {
   boardHint: $('board-hint'),
   histFull: $('hist-full'),
   distNow: $('dist-now'),
-  axisMin: $('axis-min'),
-  axisMax: $('axis-max'),
   zoomHint: $('zoom-hint'),
   btnUndo: $('btn-undo'),
   btnClear: $('btn-clear'),
@@ -64,7 +61,6 @@ const el = {
   screenLoading: $('screen-loading'),
   loadingText: $('loading-text'),
   judgeVerdict: $('judge-verdict'),
-  judgeDetail: $('judge-detail'),
   judgeTime: $('judge-time'),
   judgeGain: $('judge-gain'),
   btnNext: $('btn-next'),
@@ -285,12 +281,8 @@ async function startStage() {
     bandHi: state.bandHi,
   });
 
-  const width = state.bandHi - state.bandLo + 1;
   el.questBand.textContent = `第 ${number.format(state.bandLo + 1)} 〜 ${number.format(state.bandHi + 1)} 位`;
-  el.questSub.textContent =
-    `n = ${stage.n} ・ 全 ${number.format(total)} 通り中 ${number.format(width)} 通りが該当`;
-  el.axisMin.textContent = result.min.toFixed(1);
-  el.axisMax.textContent = result.max.toFixed(1);
+  el.questSub.textContent = `n = ${stage.n} ・ 全 ${number.format(total)} 通り`;
   // 近い点から順につなぐのが本能なので、序盤は「わざと遠回りする」と明示的に伝える
   el.boardHint.textContent = run.stage === 1
     ? '点を順につないで経路をつくる'
@@ -360,7 +352,6 @@ async function submit() {
 
   const length = canonicalPathLength(dist, stage.n, order);
   const verdict = judge(sorted, bandLo, bandHi, length);
-  const rank = rankOf(sorted, length);
   const run = state.run;
 
   let gain = 0;
@@ -384,7 +375,7 @@ async function submit() {
   }
 
   renderHud();
-  showJudge(verdict, rank, sorted.length, length, gain, seconds);
+  showJudge(verdict, gain, seconds);
 
   if (verdict !== JUDGE_IN) {
     const center = (bandLo + bandHi) >> 1;
@@ -394,18 +385,12 @@ async function submit() {
   }
 }
 
-function showJudge(verdict, rank, total, length, gain, seconds) {
+function showJudge(verdict, gain, seconds) {
   const inBand = verdict === JUDGE_IN;
   el.judgeVerdict.className = `judge-verdict ${verdict}`;
-  el.judgeVerdict.textContent = inBand
+  el.judgeVerdict.innerHTML = inBand
     ? '良かったこの距離で'
-    : verdict === JUDGE_LONG
-      ? 'そこまで離れんでも'
-      : '近すぎるって';
-
-  el.judgeDetail.innerHTML =
-    `長さ ${length.toFixed(2)} → <strong>第 ${number.format(rank)} 位</strong> / ${number.format(total)}<br>` +
-    `目標は 第 ${number.format(state.bandLo + 1)} 〜 ${number.format(state.bandHi + 1)} 位`;
+    : `そこは・・・<span class="miss">${verdict === JUDGE_LONG ? '長すぎる' : '短すぎる'}</span>`;
 
   el.judgeTime.className = `judge-time ${seconds >= 0 ? 'plus' : 'minus'}`;
   el.judgeTime.textContent = `${seconds >= 0 ? '+' : '−'}${Math.abs(seconds)} 秒`;
@@ -416,8 +401,8 @@ function showJudge(verdict, rank, total, length, gain, seconds) {
       `+${number.format(gain)}` + (state.run.combo > 1 ? `　(×${multiplier.toFixed(1)} コンボ)` : '');
     el.judgeGain.style.color = 'var(--good)';
   } else {
-    el.judgeGain.textContent = '正解例を表示中';
-    el.judgeGain.style.color = 'var(--text-dim)';
+    el.judgeGain.textContent = '正解例';
+    el.judgeGain.style.color = 'var(--text-faint)';
   }
 
   el.btnNext.textContent = state.run.isOver ? '結果を見る' : '次へ';
@@ -447,8 +432,7 @@ function showResult() {
   const isBest = saveBest(run.score);
 
   el.resultScore.textContent = number.format(run.score);
-  el.resultMeta.textContent =
-    `${run.cleared} 問正解 ・ 最大 n = ${run.maxN || '—'} ・ 生存 ${formatDuration(run.elapsed)}`;
+  el.resultMeta.textContent = `${run.cleared} 問正解 ・ 生存 ${formatDuration(run.elapsed)}`;
   const best = loadBest();
   el.resultBest.textContent = isBest ? '自己ベスト更新' : best > 0 ? `自己ベスト ${number.format(best)}` : '';
 

@@ -226,16 +226,6 @@ body {
 
 #hist-full { display: block; width: 100%; height: 104px; }
 
-.dist-axis {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-family: var(--mono);
-  font-size: 9.5px;
-  color: var(--text-faint);
-  margin-top: 3px;
-}
-
 .zoom-hint {
   text-align: center;
   font-size: 12px;
@@ -437,21 +427,13 @@ body {
   border-radius: 5px;
 }
 
-/* 成功時だけは元ネタの字幕と同じ紫地に白抜き */
+/* 元ネタの字幕にならって、成功は紫地、失敗は黒地の白抜き */
 .judge-verdict.in { color: #fff; background: var(--band); }
-.judge-verdict.short { color: var(--short); }
-.judge-verdict.long { color: var(--long); }
+.judge-verdict.short,
+.judge-verdict.long { color: #fff; background: #14161c; }
 
-.judge-detail {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--text-dim);
-  line-height: 1.85;
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 6px;
-}
-
-.judge-detail strong { color: var(--text); }
+/* 黒地では --short が沈むので、字幕用に明るい赤を使う */
+.judge-verdict .miss { color: #ff5f56; margin-left: 0.15em; }
 
 .judge-time {
   font-family: var(--mono);
@@ -465,10 +447,10 @@ body {
 
 .judge-gain {
   font-family: var(--mono);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--good);
-  min-height: 26px;
+  min-height: 24px;
   margin-bottom: 18px;
 }
 

@@ -52,10 +52,6 @@
       <span class="dist-now" id="dist-now">—</span>
     </div>
     <canvas id="hist-full" aria-label="全体の長さ分布"></canvas>
-    <div class="dist-axis">
-      <span id="axis-min">—</span>
-      <span id="axis-max">—</span>
-    </div>
     <div class="zoom-hint" id="zoom-hint"></div>
   </section>
 
@@ -73,12 +69,10 @@
     <h1 class="title">良かった<br>この距離で</h1>
     <p class="tagline">最短でも最長でもない、<br><em>ちょうどこの距離</em>を狙え。</p>
     <div class="rules">
-      <p>盤面の点を<strong>すべて一度ずつ</strong>通る経路をつくります。</p>
-      <p>その経路の長さが、全 <span class="mono">n!/2</span> 通りを短い順に並べたとき<strong>指定された順位の帯に入れば成功</strong>。</p>
-      <p>点を順に選んでつなぎます。<strong>最後に選んだ点をもう一度押すと取り消し</strong>。</p>
-      <p><strong>持ち時間は60秒。</strong>正解するたびに増え、ゼロで終了です。手に負えない盤面はわざと外して <span class="mono">−12秒</span> で降りられます。</p>
-      <p class="rules-tip"><strong>コツ：</strong>近い点から順につなぐと、ほぼ必ず帯より<strong>短く</strong>なります（それが最短経路だから）。<strong>わざと遠回りさせて</strong>長さを合わせるゲームです。</p>
-      <p class="rules-hint">目標の長さは分布グラフの<span class="swatch swatch-target"></span>帯から読み取ってください。現在の位置は<span class="swatch swatch-now"></span>で示されます（途中の経路は破線、全点つなぐと実線）。</p>
+      <p>点を<strong>すべて一度ずつ</strong>通る経路をつくります。押すと追加、最後の点をもう一度押すと取り消し。</p>
+      <p>その長さが、全経路を短い順に並べたときの<strong>指定順位の帯</strong>（グラフの<span class="swatch swatch-target"></span>）に入れば成功。短すぎても長すぎても失敗。</p>
+      <p><strong>持ち時間60秒。</strong>正解で増え、ゼロで終了。外すと <span class="mono">−12秒</span>。</p>
+      <p class="rules-tip"><strong>コツ：</strong>近い点から順につなぐと、ほぼ必ず<strong>短すぎ</strong>ます。<strong>わざと遠回りして</strong>長さを合わせるゲームです。</p>
     </div>
     <button type="button" class="btn btn-primary btn-big" id="btn-start">はじめる</button>
     <p class="credit">© 2026 / <a href="https://github.com/WaTeR-7/yokatta-kono-kyori-de" target="_blank" rel="noopener">ソース</a></p>
@@ -89,7 +83,6 @@
 <div class="screen screen-judge" id="screen-judge">
   <div class="judge-card">
     <div class="judge-verdict" id="judge-verdict"></div>
-    <div class="judge-detail" id="judge-detail"></div>
     <div class="judge-time" id="judge-time"></div>
     <div class="judge-gain" id="judge-gain"></div>
     <button type="button" class="btn btn-go" id="btn-next">次へ</button>
