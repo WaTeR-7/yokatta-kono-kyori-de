@@ -168,7 +168,17 @@ n=11 はモバイルで現実的でないため、**n の上限は 10** とし�
 ```sh
 node test/verify.mjs      # 検証スクリプト（55 項目）
 python3 -m http.server    # http://localhost:8000/ で起動
+node tools/bump-cache.mjs # 公開前にキャッシュ用のバージョンを打ち直す
 ```
+
+### 公開前に必ず bump する
+
+ビルド無しの ES モジュール構成では `index.html` と `src/*.js` が別々にキャッシュされます。
+DOM の id を1つ削っただけでも「**古い JS + 新しい HTML**」の組み合わせが成立してしまい、
+null 参照でゲームが起動しなくなります（実際に一度起きました）。
+
+`tools/bump-cache.mjs` は全モジュール URL に同じ `?v=` を打ちます。こうすると
+古い HTML は古い JS を、新しい HTML は新しい JS を指すので、新旧が混ざりません。
 
 | ファイル | 役割 |
 |---|---|

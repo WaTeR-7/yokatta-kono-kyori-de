@@ -6,7 +6,7 @@
  * 帯に対する現在位置は文字（もっと長く／もっと短く／帯の中）でも伝える。
  */
 
-import { readPalette } from './theme.js';
+import { readPalette } from './theme.js?v=202608072141';
 
 const PALETTE = {
   bar: '--bar',
