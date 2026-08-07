@@ -158,8 +158,6 @@ body {
   white-space: nowrap;
 }
 
-.quest-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; }
-
 /* ---------- 盤面 ---------- */
 
 .board-wrap {
@@ -432,8 +430,14 @@ body {
 .judge-verdict.short,
 .judge-verdict.long { color: #fff; background: #14161c; }
 
-/* 黒地では --short が沈むので、字幕用に明るい赤を使う */
-.judge-verdict .miss { color: #ff5f56; margin-left: 0.15em; }
+/* 強調する語だけ白地に赤で抜く */
+.judge-verdict .miss {
+  background: #fff;
+  color: var(--short);
+  padding: 0.02em 0.28em;
+  margin-left: 0.35em;
+  border-radius: 3px;
+}
 
 .judge-time {
   font-family: var(--mono);

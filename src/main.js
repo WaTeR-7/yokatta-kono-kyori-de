@@ -45,7 +45,6 @@ const el = {
   timebar: $('timebar-fill'),
   score: $('hud-score'),
   questBand: $('quest-band'),
-  questSub: $('quest-sub'),
   board: $('board'),
   boardHint: $('board-hint'),
   histFull: $('hist-full'),
@@ -282,7 +281,6 @@ async function startStage() {
   });
 
   el.questBand.textContent = `第 ${number.format(state.bandLo + 1)} 〜 ${number.format(state.bandHi + 1)} 位`;
-  el.questSub.textContent = `n = ${stage.n} ・ 全 ${number.format(total)} 通り`;
   // 近い点から順につなぐのが本能なので、序盤は「わざと遠回りする」と明示的に伝える
   el.boardHint.textContent = run.stage === 1
     ? '点を順につないで経路をつくる'
