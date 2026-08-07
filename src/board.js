@@ -3,19 +3,24 @@
  * 点は [0,1]^2 の正規化座標で受け取り、キャンバス内の正方領域に等倍で写す。
  */
 
-const COLORS = {
-  bg: '#0d0f15',
-  point: '#3a4056',
-  pointRing: '#4a5171',
-  pointText: '#e8eaf2',
-  active: '#4fd1e0',
-  ghost: '#f5c542',
+import { readPalette } from './theme.js';
+
+const PALETTE = {
+  nowRgb: '--now-rgb',
+  bandRgb: '--band-rgb',
+  point: '--point',
+  pointRing: '--point-ring',
+  active: '--now',
+  ghost: '--band',
+  grid: '--grid',
+  surface: '--bg-sunken',
 };
 
 export class BoardView {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
+    this.colors = readPalette(PALETTE);
     this.points = [];
     this.order = [];
     this.ghost = null;
@@ -35,6 +40,7 @@ export class BoardView {
     this.canvas.width = Math.round(rect.width * dpr);
     this.canvas.height = Math.round(rect.height * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.colors = readPalette(PALETTE);
   }
 
   /** 盤面は常に正方形。余った側は中央寄せにする。 */
@@ -115,7 +121,7 @@ export class BoardView {
   #drawGrid(g) {
     const ctx = this.ctx;
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.028)';
+    ctx.strokeStyle = this.colors.grid;
     ctx.lineWidth = 1;
     const step = g.inner / 6;
     for (let i = 0; i <= 6; i++) {
@@ -140,12 +146,12 @@ export class BoardView {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    ctx.strokeStyle = 'rgba(79, 209, 224, 0.18)';
+    ctx.strokeStyle = `rgba(${this.colors.nowRgb}, 0.16)`;
     ctx.lineWidth = g.radius * 0.85;
     this.#tracePath(this.order);
     ctx.stroke();
 
-    ctx.strokeStyle = COLORS.active;
+    ctx.strokeStyle = this.colors.active;
     ctx.lineWidth = 2.6;
     this.#tracePath(this.order);
     ctx.stroke();
@@ -187,13 +193,13 @@ export class BoardView {
     ctx.lineJoin = 'round';
 
     // 下に太い半透明の線を敷いて、暗いオーバーレイ越しでも読めるようにする
-    ctx.strokeStyle = 'rgba(245, 197, 66, 0.2)';
+    ctx.strokeStyle = `rgba(${this.colors.bandRgb}, 0.18)`;
     ctx.lineWidth = g.radius * 0.7;
     trace(remaining);
     ctx.stroke();
 
     ctx.setLineDash([7, 5]);
-    ctx.strokeStyle = COLORS.ghost;
+    ctx.strokeStyle = this.colors.ghost;
     ctx.lineWidth = 2.4;
     trace(remaining);
     ctx.stroke();
@@ -226,7 +232,7 @@ export class BoardView {
         ctx.save();
         ctx.beginPath();
         ctx.arc(p.x, p.y, g.radius + 4 + wave * 4, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(79, 209, 224, ${0.42 - wave * 0.26})`;
+        ctx.strokeStyle = `rgba(${this.colors.nowRgb}, ${0.5 - wave * 0.3})`;
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
@@ -234,14 +240,14 @@ export class BoardView {
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, g.radius, 0, Math.PI * 2);
-      ctx.fillStyle = visited ? COLORS.active : COLORS.point;
+      ctx.fillStyle = visited ? this.colors.active : this.colors.point;
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = visited ? COLORS.active : COLORS.pointRing;
+      ctx.strokeStyle = visited ? this.colors.active : this.colors.pointRing;
       ctx.stroke();
 
       if (visited) {
-        ctx.fillStyle = '#0d0f15';
+        ctx.fillStyle = '#ffffff';
         ctx.font = `700 ${Math.round(g.radius * 1.05)}px ${getComputedStyle(document.body).fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

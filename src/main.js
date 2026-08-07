@@ -50,7 +50,6 @@ const el = {
   board: $('board'),
   boardHint: $('board-hint'),
   histFull: $('hist-full'),
-  histZoom: $('hist-zoom'),
   distNow: $('dist-now'),
   axisMin: $('axis-min'),
   axisMax: $('axis-max'),
@@ -78,7 +77,7 @@ const el = {
 };
 
 const board = new BoardView(el.board);
-const histogram = new HistogramView(el.histFull, el.histZoom);
+const histogram = new HistogramView(el.histFull);
 const sound = new Sound();
 
 const state = {
@@ -319,19 +318,20 @@ function refreshPath() {
 
   histogram.setCurrent(complete ? canonicalPathLength(dist, stage.n, order) : null);
 
-  const out = histogram.outOfZoom;
+  // 帯は細くなると線として見づらいので、位置関係は文字でも伝える
+  const status = histogram.status;
   if (!complete) {
     el.zoomHint.textContent = `${order.length} / ${stage.n} 点`;
     el.zoomHint.className = 'zoom-hint';
-  } else if (out === 'short') {
-    el.zoomHint.textContent = 'もっと長い経路に';
+  } else if (status === 'short') {
+    el.zoomHint.textContent = 'もっと長い経路に →';
     el.zoomHint.className = 'zoom-hint short';
-  } else if (out === 'long') {
-    el.zoomHint.textContent = 'もっと短い経路に';
+  } else if (status === 'long') {
+    el.zoomHint.textContent = '← もっと短い経路に';
     el.zoomHint.className = 'zoom-hint long';
   } else {
-    el.zoomHint.textContent = '拡大範囲内';
-    el.zoomHint.className = 'zoom-hint';
+    el.zoomHint.textContent = '● 帯の中';
+    el.zoomHint.className = 'zoom-hint in';
   }
 
   const playable = state.phase === 'playing';

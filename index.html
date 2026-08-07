@@ -8,8 +8,8 @@
 <meta property="og:title" content="良かったこの距離で">
 <meta property="og:description" content="最短でも最長でもない、ちょうどこの距離を狙うハミルトン経路パズル。">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#12141c">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2312141c'/><circle cx='8' cy='22' r='3' fill='%234fd1e0'/><circle cx='24' cy='10' r='3' fill='%23f5c542'/><path d='M8 22 L24 10' stroke='%23f5c542' stroke-width='2'/></svg>">
+<meta name="theme-color" content="#f4f5f8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23ffffff'/><path d='M7 23 L25 9' stroke='%237c3aed' stroke-width='2.5'/><circle cx='7' cy='23' r='3.5' fill='%230d9488'/><circle cx='25' cy='9' r='3.5' fill='%237c3aed'/></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -54,10 +54,8 @@
     <canvas id="hist-full" aria-label="全体の長さ分布"></canvas>
     <div class="dist-axis">
       <span id="axis-min">—</span>
-      <span class="dist-zoomlabel">拡大</span>
       <span id="axis-max">—</span>
     </div>
-    <canvas id="hist-zoom" aria-label="目標帯の拡大表示"></canvas>
     <div class="zoom-hint" id="zoom-hint"></div>
   </section>
 
@@ -78,7 +76,7 @@
       <p>盤面の点を<strong>すべて一度ずつ</strong>通る経路をつくります。</p>
       <p>その経路の長さが、全 <span class="mono">n!/2</span> 通りを短い順に並べたとき<strong>指定された順位の帯に入れば成功</strong>。</p>
       <p>点を順に選んでつなぎます。<strong>最後に選んだ点をもう一度押すと取り消し</strong>。</p>
-      <p><strong>持ち時間は2分。</strong>正解するたびに増え、ゼロで終了です。手に負えない盤面はわざと外して <span class="mono">−12秒</span> で降りられます。</p>
+      <p><strong>持ち時間は60秒。</strong>正解するたびに増え、ゼロで終了です。手に負えない盤面はわざと外して <span class="mono">−12秒</span> で降りられます。</p>
       <p class="rules-tip"><strong>コツ：</strong>近い点から順につなぐと、ほぼ必ず帯より<strong>短く</strong>なります（それが最短経路だから）。<strong>わざと遠回りさせて</strong>長さを合わせるゲームです。</p>
       <p class="rules-hint">目標の長さは分布グラフの<span class="swatch swatch-target"></span>帯から読み取ってください。現在の位置は<span class="swatch swatch-now"></span>で示されます。</p>
     </div>

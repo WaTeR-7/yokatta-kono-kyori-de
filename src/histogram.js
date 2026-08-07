@@ -1,91 +1,64 @@
 /**
- * 長さ分布の描画。上段が全体、下段が目標帯まわりの拡大。
+ * 長さ分布の描画。
  *
- * 拡大表示が要るのは、難易度が上がると目標帯が全体の 0.3% 程度まで狭まり、
- * 全体表示では 1px 未満のスジになって狙えなくなるため。
+ * 難易度が上がると目標帯は分布全体の 1% 未満まで細くなり、線としては
+ * ほとんど見えなくなる。そのため帯は最低幅を持たせて必ず視認できるようにし、
+ * 帯に対する現在位置は文字（もっと長く／もっと短く／帯の中）でも伝える。
  */
 
-import { lowerBound } from './enumerate.js';
+import { readPalette } from './theme.js';
 
-const COLORS = {
-  bar: '#39405a',
-  barLit: '#4c5578',
-  target: '#f5c542',
-  targetFill: 'rgba(245, 197, 66, 0.22)',
-  now: '#4fd1e0',
-  axis: '#2a2f3f',
+const PALETTE = {
+  bar: '--bar',
+  band: '--band',
+  bandFill: '--band-fill-strong',
+  now: '--now',
+  axis: '--line',
 };
 
-/** 目標帯が拡大ビューの幅のこの割合を占めるようにする。 */
-const ZOOM_BAND_FRACTION = 1 / 9;
-
-/** 拡大範囲に入る経路数に合わせてビンを刻む。少ないのに細かく刻むと櫛の歯になる。 */
-function zoomBinsFor(countInRange) {
-  return Math.min(130, Math.max(16, Math.round(Math.sqrt(countInRange) * 2)));
-}
+/** 帯が細くてもこの幅では描く。位置は正確なまま見失わせないため。 */
+const MIN_BAND_PIXELS = 3;
 
 export class HistogramView {
-  constructor(fullCanvas, zoomCanvas) {
-    this.full = { canvas: fullCanvas, ctx: fullCanvas.getContext('2d'), w: 1, h: 1 };
-    this.zoom = { canvas: zoomCanvas, ctx: zoomCanvas.getContext('2d'), w: 1, h: 1 };
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.colors = readPalette(PALETTE);
+    this.width = 1;
+    this.height = 1;
     this.data = null;
     this.current = null;
     this.resize();
   }
 
   resize() {
-    for (const target of [this.full, this.zoom]) {
-      const rect = target.canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) continue;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      target.w = rect.width;
-      target.h = rect.height;
-      target.canvas.width = Math.round(rect.width * dpr);
-      target.canvas.height = Math.round(rect.height * dpr);
-      target.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    this.width = rect.width;
+    this.height = rect.height;
+    this.canvas.width = Math.round(rect.width * dpr);
+    this.canvas.height = Math.round(rect.height * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.colors = readPalette(PALETTE);
   }
 
   /**
    * @param {Float64Array} sorted ソート済み全経路長
-   * @param {Uint32Array} binCounts 全体表示用のビン
+   * @param {Uint32Array} binCounts ビン集計
    * @param {number} min,max 分布の両端
    * @param {number} bandLo,bandHi 目標帯（0-indexed）
    */
   setData({ sorted, binCounts, min, max, bandLo, bandHi }) {
-    const bandMin = sorted[bandLo];
-    const bandMax = sorted[bandHi];
-    const fullSpan = max - min;
-    const bandSpan = Math.max(bandMax - bandMin, fullSpan * 1e-5);
-    // 帯が広い段では拡大幅が分布全体を超えてしまい、かえって縮小表示になる。
-    // 全体の範囲を超えないよう抑え、はみ出す場合は内側に寄せる。
-    const zoomSpan = Math.min(bandSpan / ZOOM_BAND_FRACTION, fullSpan);
-    const center = (bandMin + bandMax) / 2;
-    let zoomLo = center - zoomSpan / 2;
-    if (zoomLo < min) zoomLo = min;
-    if (zoomLo + zoomSpan > max) zoomLo = max - zoomSpan;
-    const zoomHi = zoomLo + zoomSpan;
-
-    // 拡大側のビンはステージ中変わらないので一度だけ数える
-    const zoomStart = lowerBound(sorted, zoomLo);
-    const bins = zoomBinsFor(lowerBound(sorted, zoomHi) - zoomStart);
-    const zoomCounts = new Uint32Array(bins);
-    let zoomPeak = 0;
-    let edge = zoomStart;
-    for (let i = 0; i < bins; i++) {
-      const next = lowerBound(sorted, zoomLo + (zoomSpan * (i + 1)) / bins);
-      zoomCounts[i] = next - edge;
-      if (zoomCounts[i] > zoomPeak) zoomPeak = zoomCounts[i];
-      edge = next;
-    }
-
     let peak = 0;
-    for (const c of binCounts) if (c > peak) peak = c;
-
+    for (const count of binCounts) if (count > peak) peak = count;
     this.data = {
-      sorted, binCounts, min, max, bandLo, bandHi,
-      bandMin, bandMax, peak,
-      zoomLo, zoomHi, zoomSpan, zoomCounts, zoomPeak,
+      binCounts,
+      min,
+      max,
+      peak,
+      bandMin: sorted[bandLo],
+      bandMax: sorted[bandHi],
     };
     this.current = null;
   }
@@ -100,120 +73,89 @@ export class HistogramView {
     this.current = length;
   }
 
-  /** 拡大ビューの外に出ているときの向き。'short' | 'long' | null */
-  get outOfZoom() {
+  /** 帯に対する現在位置。'short' | 'long' | 'in' | null */
+  get status() {
     if (!this.data || this.current == null) return null;
-    if (this.current < this.data.zoomLo) return 'short';
-    if (this.current > this.data.zoomHi) return 'long';
-    return null;
+    if (this.current < this.data.bandMin) return 'short';
+    if (this.current > this.data.bandMax) return 'long';
+    return 'in';
   }
 
   render() {
-    this.#renderFull();
-    this.#renderZoom();
-  }
-
-  #renderFull() {
-    const { ctx, w, h } = this.full;
-    ctx.clearRect(0, 0, w, h);
+    const { ctx, width, height } = this;
+    ctx.clearRect(0, 0, width, height);
     if (!this.data) return;
-    const d = this.data;
-    const span = d.max - d.min;
-    const toX = (value) => ((value - d.min) / span) * w;
 
-    this.#drawBars(ctx, w, h, d.binCounts, d.peak);
-    this.#drawBand(ctx, h, toX(d.bandMin), toX(d.bandMax), 2);
-    this.#drawBaseline(ctx, w, h);
-    if (this.current != null) this.#drawNow(ctx, h, toX(this.current), w);
+    const d = this.data;
+    const span = d.max - d.min || 1;
+    const toX = (value) => ((value - d.min) / span) * width;
+
+    this.#drawBars();
+    this.#drawBand(toX(d.bandMin), toX(d.bandMax));
+    this.#drawBaseline();
+    if (this.current != null) this.#drawNow(toX(this.current));
   }
 
-  #renderZoom() {
-    const { ctx, w, h } = this.zoom;
-    ctx.clearRect(0, 0, w, h);
-    if (!this.data) return;
-    const d = this.data;
-    const toX = (value) => ((value - d.zoomLo) / d.zoomSpan) * w;
-
-    this.#drawBars(ctx, w, h, d.zoomCounts, d.zoomPeak);
-    this.#drawBand(ctx, h, toX(d.bandMin), toX(d.bandMax), 3);
-    this.#drawBaseline(ctx, w, h);
-
-    if (this.current != null) {
-      const x = toX(this.current);
-      if (x < 0 || x > w) this.#drawEdgeArrow(ctx, w, h, x < 0 ? -1 : 1);
-      else this.#drawNow(ctx, h, x, w);
-    }
-  }
-
-  #drawBars(ctx, w, h, counts, peak) {
+  #drawBars() {
+    const { ctx, width, height } = this;
+    const { binCounts, peak } = this.data;
     if (!peak) return;
-    const n = counts.length;
-    const barWidth = w / n;
-    ctx.fillStyle = COLORS.bar;
-    for (let i = 0; i < n; i++) {
-      if (!counts[i]) continue;
+    const barWidth = width / binCounts.length;
+    ctx.fillStyle = this.colors.bar;
+    for (let i = 0; i < binCounts.length; i++) {
+      if (!binCounts[i]) continue;
       // 平方根スケール。裾の少ない領域も潰れずに見える。
-      const height = Math.max(1.5, Math.sqrt(counts[i] / peak) * (h - 5));
-      ctx.fillRect(i * barWidth, h - height, Math.max(1, barWidth - 0.5), height);
+      const barHeight = Math.max(1.5, Math.sqrt(binCounts[i] / peak) * (height - 5));
+      ctx.fillRect(i * barWidth, height - barHeight, Math.max(1, barWidth - 0.5), barHeight);
     }
   }
 
-  #drawBand(ctx, h, x0, x1, minWidth) {
-    const left = Math.min(x0, x1);
-    const width = Math.max(minWidth, Math.abs(x1 - x0));
+  #drawBand(x0, x1) {
+    const { ctx, height } = this;
+    const drawn = Math.max(MIN_BAND_PIXELS, Math.abs(x1 - x0));
+    // 最低幅で描くときは中心をずらさない
+    const left = Math.min(x0, x1) - Math.max(0, (drawn - Math.abs(x1 - x0)) / 2);
+
     ctx.save();
-    ctx.fillStyle = COLORS.targetFill;
-    ctx.fillRect(left, 0, width, h);
-    ctx.strokeStyle = COLORS.target;
-    ctx.lineWidth = 1;
+    ctx.fillStyle = this.colors.bandFill;
+    ctx.fillRect(left, 0, drawn, height);
+    ctx.strokeStyle = this.colors.band;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(left + 0.5, 0);
-    ctx.lineTo(left + 0.5, h);
-    ctx.moveTo(left + width - 0.5, 0);
-    ctx.lineTo(left + width - 0.5, h);
+    ctx.moveTo(left + 0.75, 0);
+    ctx.lineTo(left + 0.75, height);
+    ctx.moveTo(left + drawn - 0.75, 0);
+    ctx.lineTo(left + drawn - 0.75, height);
     ctx.stroke();
     ctx.restore();
   }
 
-  #drawBaseline(ctx, w, h) {
-    ctx.strokeStyle = COLORS.axis;
+  #drawBaseline() {
+    const { ctx, width, height } = this;
+    ctx.strokeStyle = this.colors.axis;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, h - 0.5);
-    ctx.lineTo(w, h - 0.5);
+    ctx.moveTo(0, height - 0.5);
+    ctx.lineTo(width, height - 0.5);
     ctx.stroke();
   }
 
-  #drawNow(ctx, h, x, w) {
-    const clamped = Math.max(1, Math.min(w - 1, x));
+  #drawNow(x) {
+    const { ctx, width, height } = this;
+    const clamped = Math.max(6, Math.min(width - 6, x));
     ctx.save();
-    ctx.strokeStyle = COLORS.now;
+    ctx.strokeStyle = this.colors.now;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(clamped, 0);
-    ctx.lineTo(clamped, h);
+    ctx.lineTo(clamped, height);
     ctx.stroke();
 
-    ctx.fillStyle = COLORS.now;
+    ctx.fillStyle = this.colors.now;
     ctx.beginPath();
-    ctx.moveTo(clamped, 7);
-    ctx.lineTo(clamped - 5, 0);
-    ctx.lineTo(clamped + 5, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-
-  #drawEdgeArrow(ctx, w, h, direction) {
-    const y = h / 2;
-    const x = direction < 0 ? 9 : w - 9;
-    ctx.save();
-    ctx.fillStyle = COLORS.now;
-    ctx.globalAlpha = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(x + direction * 7, y);
-    ctx.lineTo(x - direction * 5, y - 7);
-    ctx.lineTo(x - direction * 5, y + 7);
+    ctx.moveTo(clamped, 8);
+    ctx.lineTo(clamped - 5.5, 0);
+    ctx.lineTo(clamped + 5.5, 0);
     ctx.closePath();
     ctx.fill();
     ctx.restore();

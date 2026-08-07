@@ -7,7 +7,7 @@
  * 誤提出は時間を払って盤面から降りる手段（実質のスキップ）として機能させる。
  */
 
-export const START_SECONDS = 120;
+export const START_SECONDS = 60;
 export const WRONG_PENALTY = 12;
 const BEST_KEY = 'ykkd.best';
 
