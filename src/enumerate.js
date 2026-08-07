@@ -161,17 +161,18 @@ export function rankOf(sortedLengths, value) {
  * 逆算する。こうすると出題位置によらず「どれくらい細かく合わせる必要があるか」が
  * 一定になる。順位の幅の方が問ごとに変わる。
  *
- * 分布の極端な裾に出ると「最短経路を厳密に当てろ」という別の問題になってしまうので、
- * 帯の中心は上下 2% を避けて選ぶ。
+ * placement は帯の中心をどの順位の範囲から選ぶか（0〜1 の割合）。序盤は短い側に
+ * 寄せて、本能的につないだ経路からの距離を縮める。
  */
-export function buildBand(sortedLengths, windowRatio, rng) {
+export function buildBand(sortedLengths, windowRatio, rng, placement = { lo: 0.05, hi: 0.95 }) {
   const total = sortedLengths.length;
   const span = sortedLengths[total - 1] - sortedLengths[0];
   const half = (span * windowRatio) / 2;
 
-  const margin = Math.max(2, Math.floor(total * 0.05));
-  const pivot = Math.min(total - 1, margin + Math.floor(rng() * Math.max(1, total - margin * 2)));
-  const center = sortedLengths[pivot];
+  const from = Math.max(2, Math.floor(total * placement.lo));
+  const to = Math.min(total - 1, Math.max(from, Math.floor(total * placement.hi)));
+  const pivot = from + Math.floor(rng() * (to - from + 1));
+  const center = sortedLengths[Math.min(total - 1, pivot)];
 
   let lo = lowerBound(sortedLengths, center - half);
   let hi = lowerBound(sortedLengths, center + half) - 1;

@@ -55,11 +55,16 @@ export class HistogramView {
   setData({ sorted, binCounts, min, max, bandLo, bandHi }) {
     const bandMin = sorted[bandLo];
     const bandMax = sorted[bandHi];
-    const bandSpan = Math.max(bandMax - bandMin, (max - min) * 1e-5);
-    const zoomSpan = bandSpan / ZOOM_BAND_FRACTION;
+    const fullSpan = max - min;
+    const bandSpan = Math.max(bandMax - bandMin, fullSpan * 1e-5);
+    // 帯が広い段では拡大幅が分布全体を超えてしまい、かえって縮小表示になる。
+    // 全体の範囲を超えないよう抑え、はみ出す場合は内側に寄せる。
+    const zoomSpan = Math.min(bandSpan / ZOOM_BAND_FRACTION, fullSpan);
     const center = (bandMin + bandMax) / 2;
-    const zoomLo = center - zoomSpan / 2;
-    const zoomHi = center + zoomSpan / 2;
+    let zoomLo = center - zoomSpan / 2;
+    if (zoomLo < min) zoomLo = min;
+    if (zoomLo + zoomSpan > max) zoomLo = max - zoomSpan;
+    const zoomHi = zoomLo + zoomSpan;
 
     // 拡大側のビンはステージ中変わらないので一度だけ数える
     const zoomStart = lowerBound(sorted, zoomLo);

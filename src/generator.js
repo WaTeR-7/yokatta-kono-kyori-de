@@ -65,18 +65,22 @@ export function generatePoints(n, seed) {
  * bonus は正解したときに増える秒数。
  */
 export const LADDER = [
-  { upTo: 1, n: 5, window: 0.130, bonus: 10 },
-  { upTo: 3, n: 6, window: 0.075, bonus: 12 },
-  { upTo: 5, n: 7, window: 0.055, bonus: 14 },
-  { upTo: 7, n: 8, window: 0.040, bonus: 17 },
-  { upTo: 9, n: 9, window: 0.028, bonus: 20 },
-  { upTo: 11, n: 10, window: 0.020, bonus: 23 },
-  { upTo: 13, n: 10, window: 0.014, bonus: 26 },
-  { upTo: Infinity, n: 10, window: 0.010, bonus: 30 },
+  { upTo: 2, n: 5, window: 0.300, bonus: 12 },
+  { upTo: 4, n: 6, window: 0.220, bonus: 14 },
+  { upTo: 6, n: 6, window: 0.160, bonus: 15 },
+  { upTo: 8, n: 7, window: 0.120, bonus: 17 },
+  { upTo: 10, n: 7, window: 0.090, bonus: 18 },
+  { upTo: 12, n: 8, window: 0.070, bonus: 20 },
+  { upTo: 14, n: 8, window: 0.055, bonus: 22 },
+  { upTo: 16, n: 9, window: 0.040, bonus: 24 },
+  { upTo: 18, n: 9, window: 0.030, bonus: 26 },
+  { upTo: 20, n: 10, window: 0.022, bonus: 28 },
+  { upTo: 22, n: 10, window: 0.016, bonus: 30 },
+  { upTo: Infinity, n: 10, window: 0.012, bonus: 32 },
 ];
 
 /** ここから先は窓が締まり続ける。上手い人でもいつか時間が尽きるように。 */
-const ENDLESS_FROM = 14;
+const ENDLESS_FROM = 23;
 const ENDLESS_DECAY = 0.93;
 const WINDOW_FLOOR = 0.002;
 
@@ -97,6 +101,22 @@ export function windowRatioFor(stage) {
 /** 正解したときに増える秒数。 */
 export function bonusSecondsFor(stage) {
   return difficultyFor(stage).bonus;
+}
+
+/**
+ * 目標帯を分布のどのあたりに置くか（順位の割合で指定）。
+ *
+ * 序盤は分布の中央付近に限定し、ステージが進むにつれて全域へ広げる。
+ *
+ * 「本能でつないだ経路は最下位付近に落ちるのだから、序盤の目標も短い側に
+ * 寄せればよい」というのは誤り。分布の裾は経路が極端に疎で、幅 30% の窓でも
+ * 60 通り中 6 通りしか入らず「最短を厳密に当てろ」に化ける。
+ * 経路が最も密集するのは中央（最頻値）付近で、そこに広い窓を置くのが一番易しい。
+ */
+export function placementFor(stage) {
+  const t = Math.min(1, Math.max(0, (stage - 1) / 9));
+  const half = 0.15 + 0.30 * t;
+  return { lo: 0.5 - half, hi: 0.5 + half };
 }
 
 /** ステージ設定をまとめて作る。 */

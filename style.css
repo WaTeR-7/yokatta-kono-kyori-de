@@ -365,6 +365,16 @@ body {
 .rules .mono { font-family: var(--mono); color: var(--text); }
 .rules-hint { border-top: 1px solid var(--line); padding-top: 9px; color: var(--text-faint); font-size: 11.5px; }
 
+.rules-tip {
+  background: rgba(79, 209, 224, 0.08);
+  border-left: 2px solid var(--now);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 10px;
+  color: var(--text-dim);
+}
+
+.rules-tip strong { color: var(--now); }
+
 .swatch {
   display: inline-block;
   width: 20px;

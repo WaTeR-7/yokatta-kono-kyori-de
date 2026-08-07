@@ -78,7 +78,8 @@
       <p>盤面の点を<strong>すべて一度ずつ</strong>通る経路をつくります。</p>
       <p>その経路の長さが、全 <span class="mono">n!/2</span> 通りを短い順に並べたとき<strong>指定された順位の帯に入れば成功</strong>。</p>
       <p>点を順に選んでつなぎます。<strong>最後に選んだ点をもう一度押すと取り消し</strong>。</p>
-      <p><strong>持ち時間は60秒。</strong>正解するたびに増え、ゼロで終了です。手に負えない盤面はわざと外して <span class="mono">−12秒</span> で降りられます。</p>
+      <p><strong>持ち時間は2分。</strong>正解するたびに増え、ゼロで終了です。手に負えない盤面はわざと外して <span class="mono">−12秒</span> で降りられます。</p>
+      <p class="rules-tip"><strong>コツ：</strong>近い点から順につなぐと、ほぼ必ず帯より<strong>短く</strong>なります（それが最短経路だから）。<strong>わざと遠回りさせて</strong>長さを合わせるゲームです。</p>
       <p class="rules-hint">目標の長さは分布グラフの<span class="swatch swatch-target"></span>帯から読み取ってください。現在の位置は<span class="swatch swatch-now"></span>で示されます。</p>
     </div>
     <button type="button" class="btn btn-primary btn-big" id="btn-start">はじめる</button>

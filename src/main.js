@@ -17,7 +17,13 @@ import {
   saveBest,
   scoreFor,
 } from './game.js';
-import { bonusSecondsFor, buildStage, makeRng, windowRatioFor } from './generator.js';
+import {
+  bonusSecondsFor,
+  buildStage,
+  makeRng,
+  placementFor,
+  windowRatioFor,
+} from './generator.js';
 import {
   JUDGE_IN,
   JUDGE_LONG,
@@ -265,7 +271,7 @@ async function startStage() {
   const total = state.sorted.length;
   state.windowRatio = windowRatioFor(run.stage);
   const rng = makeRng((stage.seed ^ 0x5bf03635) >>> 0);
-  const band = buildBand(state.sorted, state.windowRatio, rng);
+  const band = buildBand(state.sorted, state.windowRatio, rng, placementFor(run.stage));
   state.bandLo = band.lo;
   state.bandHi = band.hi;
   state.bandMin = state.sorted[band.lo];
@@ -286,7 +292,11 @@ async function startStage() {
     `n = ${stage.n} ・ 全 ${number.format(total)} 通り中 ${number.format(width)} 通りが該当`;
   el.axisMin.textContent = result.min.toFixed(1);
   el.axisMax.textContent = result.max.toFixed(1);
-  el.boardHint.classList.toggle('hidden', run.stage > 1);
+  // 近い点から順につなぐのが本能なので、序盤は「わざと遠回りする」と明示的に伝える
+  el.boardHint.textContent = run.stage === 1
+    ? '点を順につないで経路をつくる'
+    : '最短につなぐと帯より短くなりがち。わざと遠回りを';
+  el.boardHint.classList.toggle('hidden', run.stage > 4);
 
   state.phase = 'playing';
   hideScreens();

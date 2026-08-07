@@ -32,6 +32,7 @@ import {
   difficultyFor,
   generatePoints,
   makeRng,
+  placementFor,
   stageSeed,
   windowRatioFor,
 } from '../src/generator.js';
@@ -220,7 +221,7 @@ test('逆順の経路は同じ順位・同じ判定になる (n=7)', () => {
   const n = 7;
   const { dist, sorted } = setup(n, 5007);
   const rng = makeRng(5150);
-  const { lo, hi } = buildBand(sorted, windowRatioFor(4), rng);
+  const { lo, hi } = buildBand(sorted, windowRatioFor(4), rng, placementFor(4));
   for (let k = 0; k < 300; k++) {
     const order = shuffledOrder(n, rng);
     const reversed = [...order].reverse();
@@ -239,7 +240,7 @@ section('6. 出題の可解性 — 帯内の経路が実在し、復元できる
 // n=9,10 は列挙が重いのでシード数を絞る（それでも全段を必ず1回は通す）
 const SEEDS_BY_N = { 5: 40, 6: 40, 7: 25, 8: 12, 9: 4, 10: 2 };
 
-const STAGES = [...LADDER.map((r) => (Number.isFinite(r.upTo) ? r.upTo : 14)), 20, 40];
+const STAGES = [...LADDER.map((r) => (Number.isFinite(r.upTo) ? r.upTo : 23)), 30, 60];
 
 for (const stage of STAGES) {
   const n = difficultyFor(stage).n;
@@ -253,7 +254,7 @@ for (const stage of STAGES) {
 
       const ratio = windowRatioFor(stage);
       const rng = makeRng(seed ^ 0x5bf03635);
-      const { lo, hi } = buildBand(sorted, ratio, rng);
+      const { lo, hi } = buildBand(sorted, ratio, rng, placementFor(stage));
 
       assert.ok(lo >= 0 && hi < sorted.length, `帯が範囲外 [${lo}, ${hi}]`);
       assert.ok(hi >= lo, `帯が空 [${lo}, ${hi}]`);
@@ -287,10 +288,10 @@ for (const stage of STAGES) {
 test('長さの窓が出題位置によらず揃っている (n=8)', () => {
   const { sorted } = setup(8, 6108);
   const span = sorted[sorted.length - 1] - sorted[0];
-  const ratio = windowRatioFor(7);
+  const ratio = windowRatioFor(12);
   const widths = [];
   for (let s = 0; s < 200; s++) {
-    const { lo, hi } = buildBand(sorted, ratio, makeRng(s * 7919 + 3));
+    const { lo, hi } = buildBand(sorted, ratio, makeRng(s * 7919 + 3), placementFor(12));
     widths.push(sorted[hi] - sorted[lo]);
   }
   const target = span * ratio;
@@ -309,7 +310,7 @@ test('難易度は単調に厳しくなり、下限で止まる', () => {
     assert.ok(ratio >= 0.002 - 1e-12, `ステージ${stage}で下限を割った: ${ratio}`);
     previous = ratio;
   }
-  assert.equal(windowRatioFor(200), 0.002, '十分先で下限に張り付くはず');
+  assert.equal(windowRatioFor(400), 0.002, '十分先で下限に張り付くはず');
   assert.ok(difficultyFor(200).n <= 10, 'n の上限は 10');
 });
 
