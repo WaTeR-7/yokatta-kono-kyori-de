@@ -68,9 +68,11 @@
     <h1 class="title">良かった<br>この距離で</h1>
     <p class="tagline">最短でも最長でもない、<br><em>ちょうどこの距離</em>を狙え。</p>
     <div class="rules">
-      <p>点を<strong>すべて一度ずつ</strong>通る経路をつくります。押すと追加、最後の点をもう一度押すと取り消し。</p>
-      <p>その長さが、全経路を短い順に並べたときの<strong>指定順位の帯</strong>（グラフの<span class="swatch swatch-target"></span>）に入れば成功。短すぎても長すぎても失敗。</p>
-      <p><strong>持ち時間60秒。</strong>正解で増え、ゼロで終了。外すと <span class="mono">−12秒</span>。</p>
+      <ul class="rules-list">
+        <li>点を1回ずつ通る経路を選びます。</li>
+        <li>経路の距離がちょうどいい範囲を目指します。</li>
+        <li>制限時間60秒。正誤で増減します。</li>
+      </ul>
       <p class="rules-tip"><strong>コツ：</strong>近い点から順につなぐと、ほぼ必ず<strong>短すぎ</strong>ます。<strong>わざと遠回りして</strong>長さを合わせるゲームです。</p>
     </div>
     <button type="button" class="btn btn-go btn-big" id="btn-start">はじめる</button>
