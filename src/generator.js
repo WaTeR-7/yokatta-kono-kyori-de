@@ -54,19 +54,31 @@ export function generatePoints(n, seed) {
 
 /**
  * 難易度テーブル。
- * n=5 は全 60 通りしかなく割合で切ると帯が潰れるので、件数で直接指定する。
- * n を上げるほど盤面は複雑になるが近傍手数も増えて微調整が効くので、
- * 難易度の主軸は帯の幅（ratio）に置いている。
+ *
+ * 難易度は「順位の幅」ではなく **目標の長さの窓が分布全体の何割か** で定義する。
+ * 同じ順位幅でも分布の中央は裾より長さの窓が 2〜3 倍狭く、体感difficultyが
+ * 問ごとにばらついてしまうため。順位幅の方を毎回逆算する。
+ *
+ * window は、辺を 1 本入れ替えたときの長さの変化量（n=8 で中央値 0.52、
+ * n=10 で 0.33）に対して十分な余裕があるように決めている。
+ *
+ * bonus は正解したときに増える秒数。
  */
 export const LADDER = [
-  { upTo: 1, n: 5, absolute: 9 },
-  { upTo: 3, n: 6, ratio: 0.08 },
-  { upTo: 5, n: 7, ratio: 0.05 },
-  { upTo: 7, n: 8, ratio: 0.03 },
-  { upTo: 9, n: 9, ratio: 0.02 },
-  { upTo: 11, n: 10, ratio: 0.01 },
-  { upTo: Infinity, n: 10, ratio: 0.005 },
+  { upTo: 1, n: 5, window: 0.130, bonus: 10 },
+  { upTo: 3, n: 6, window: 0.075, bonus: 12 },
+  { upTo: 5, n: 7, window: 0.055, bonus: 14 },
+  { upTo: 7, n: 8, window: 0.040, bonus: 17 },
+  { upTo: 9, n: 9, window: 0.028, bonus: 20 },
+  { upTo: 11, n: 10, window: 0.020, bonus: 23 },
+  { upTo: 13, n: 10, window: 0.014, bonus: 26 },
+  { upTo: Infinity, n: 10, window: 0.010, bonus: 30 },
 ];
+
+/** ここから先は窓が締まり続ける。上手い人でもいつか時間が尽きるように。 */
+const ENDLESS_FROM = 14;
+const ENDLESS_DECAY = 0.93;
+const WINDOW_FLOOR = 0.002;
 
 export function difficultyFor(stage) {
   for (const row of LADDER) {
@@ -75,16 +87,16 @@ export function difficultyFor(stage) {
   return LADDER[LADDER.length - 1];
 }
 
-/** 目標帯の幅（件数）。最低 3 件は確保する。 */
-export function bandWidthFor(stage, total) {
+/** 目標の長さの窓が、分布全体の幅に占める割合。 */
+export function windowRatioFor(stage) {
   const rule = difficultyFor(stage);
-  const raw = rule.absolute !== undefined ? rule.absolute : Math.round(total * rule.ratio);
-  return Math.max(3, Math.min(total, raw));
+  if (stage < ENDLESS_FROM) return rule.window;
+  return Math.max(WINDOW_FLOOR, rule.window * ENDLESS_DECAY ** (stage - ENDLESS_FROM));
 }
 
-/** 帯の開始位置（0-indexed）を一様に選ぶ。 */
-export function bandStartFor(rng, total, width) {
-  return Math.floor(rng() * (total - width + 1));
+/** 正解したときに増える秒数。 */
+export function bonusSecondsFor(stage) {
+  return difficultyFor(stage).bonus;
 }
 
 /** ステージ設定をまとめて作る。 */

@@ -1,52 +1,70 @@
 /**
  * ラン全体の進行とスコア。描画にも DOM にも依存しない。
+ *
+ * 現在の経路長がリアルタイムで見えている以上、提出はノーリスクで
+ * 「帯に入るまで直し続ければ必ず成功する」。したがってライフ制は
+ * 「諦めたかどうか」しか測れない。コストは失敗ではなく **かかった時間** に置き、
+ * 誤提出は時間を払って盤面から降りる手段（実質のスキップ）として機能させる。
  */
 
-export const MAX_LIVES = 3;
+export const START_SECONDS = 60;
+export const WRONG_PENALTY = 12;
 const BEST_KEY = 'ykkd.best';
 
 /**
  * 得点式。
  *   base        点の数。盤面が複雑なほど高い
- *   precision   帯が狭いほど高い（幅8% → 62点、0.5% → 1000点）
+ *   precision   長さの窓が狭いほど高い（窓10% → 40点、1% → 400点、0.2% → 2000点）
  *   centerBonus 帯のど真ん中に寄せるほど高い。「ちょうどこの距離」を狙う動機
  *   combo       連続成功で最大 2 倍
  */
-export function scoreFor({ n, width, total, rank, bandLo, bandHi, combo }) {
-  const bandPercent = (width / total) * 100;
+export function scoreFor({ n, windowRatio, length, bandMin, bandMax, combo }) {
   const base = 100 * n;
-  const precision = Math.round(500 / bandPercent);
+  const precision = Math.round(4 / windowRatio);
 
-  const center = (bandLo + bandHi) / 2;
-  const half = Math.max(1, (bandHi - bandLo) / 2);
-  const offset = Math.abs(rank - 1 - center) / half;
-  const centerBonus = Math.round(200 * Math.max(0, 1 - offset));
+  const center = (bandMin + bandMax) / 2;
+  const half = Math.max((bandMax - bandMin) / 2, 1e-9);
+  const centerBonus = Math.round(200 * Math.max(0, 1 - Math.abs(length - center) / half));
 
-  const multiplier = Math.min(2, 1 + 0.1 * combo);
+  const multiplier = comboMultiplier(combo);
   return Math.round((base + precision + centerBonus) * multiplier);
+}
+
+export function comboMultiplier(combo) {
+  return Math.min(2, 1 + 0.1 * combo);
 }
 
 export class Run {
   constructor(seed) {
     this.seed = seed >>> 0;
     this.stage = 1;
-    this.lives = MAX_LIVES;
     this.score = 0;
     this.combo = 0;
     this.maxN = 0;
     this.cleared = 0;
+    this.missed = 0;
+    this.time = START_SECONDS;
+    this.elapsed = 0;
   }
 
-  succeed(gain, n) {
+  /** 秒単位。プレイ中だけ呼ぶ。 */
+  tick(seconds) {
+    this.time -= seconds;
+    this.elapsed += seconds;
+  }
+
+  succeed(gain, n, bonusSeconds) {
     this.score += gain;
     this.combo += 1;
     this.cleared += 1;
     this.maxN = Math.max(this.maxN, n);
+    this.time += bonusSeconds;
   }
 
   fail() {
-    this.lives -= 1;
     this.combo = 0;
+    this.missed += 1;
+    this.time -= WRONG_PENALTY;
   }
 
   /** 判定中は今のステージ番号を出したままにしたいので、進めるのは「次へ」を押してから。 */
@@ -55,8 +73,20 @@ export class Run {
   }
 
   get isOver() {
-    return this.lives <= 0;
+    return this.time <= 0;
   }
+}
+
+export function formatTime(seconds) {
+  const clamped = Math.max(0, seconds);
+  return clamped.toFixed(1);
+}
+
+export function formatDuration(seconds) {
+  const total = Math.round(seconds);
+  const min = Math.floor(total / 60);
+  const sec = total % 60;
+  return min > 0 ? `${min}分${String(sec).padStart(2, '0')}秒` : `${sec}秒`;
 }
 
 export function loadBest() {

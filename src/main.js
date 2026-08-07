@@ -5,11 +5,23 @@
 import { BoardView } from './board.js';
 import { HistogramView } from './histogram.js';
 import { Sound } from './audio.js';
-import { MAX_LIVES, Run, loadBest, newRunSeed, saveBest, scoreFor } from './game.js';
-import { bandStartFor, bandWidthFor, buildStage, makeRng } from './generator.js';
+import {
+  START_SECONDS,
+  Run,
+  WRONG_PENALTY,
+  comboMultiplier,
+  formatDuration,
+  formatTime,
+  loadBest,
+  newRunSeed,
+  saveBest,
+  scoreFor,
+} from './game.js';
+import { bonusSecondsFor, buildStage, makeRng, windowRatioFor } from './generator.js';
 import {
   JUDGE_IN,
   JUDGE_LONG,
+  buildBand,
   buildDistanceMatrix,
   canonicalPathLength,
   enumerateSortedLengths,
@@ -24,7 +36,8 @@ const $ = (id) => document.getElementById(id);
 
 const el = {
   stage: $('hud-stage'),
-  lives: $('hud-lives'),
+  time: $('hud-time'),
+  timebar: $('timebar-fill'),
   score: $('hud-score'),
   questBand: $('quest-band'),
   questSub: $('quest-sub'),
@@ -47,6 +60,7 @@ const el = {
   loadingText: $('loading-text'),
   judgeVerdict: $('judge-verdict'),
   judgeDetail: $('judge-detail'),
+  judgeTime: $('judge-time'),
   judgeGain: $('judge-gain'),
   btnNext: $('btn-next'),
   btnStart: $('btn-start'),
@@ -68,7 +82,9 @@ const state = {
   dist: null,
   bandLo: 0,
   bandHi: 0,
-  bandWidth: 0,
+  bandMin: 0,
+  bandMax: 0,
+  windowRatio: 0,
   order: [],
   phase: 'title',
   requestId: 0,
@@ -79,6 +95,12 @@ const number = new Intl.NumberFormat('ja-JP');
 // ---------------------------------------------------------------------------
 // 計算エンジン。Worker が使えない環境ではメインスレッドに落とす。
 // ---------------------------------------------------------------------------
+
+function factorialHalf(n) {
+  let f = 1;
+  for (let i = 2; i <= n; i++) f *= i;
+  return f / 2;
+}
 
 /**
  * ビンの数。経路数が少ないうちに 240 本も刻むと空のビンだらけで
@@ -124,16 +146,15 @@ function createEngine() {
   let nextId = 1;
   const pending = new Map();
 
+  const viaFallback = (entry) => (entry.kind === 'prepare'
+    ? fallback.prepare(entry.points)
+    : fallback.reveal(entry.points, entry.targetLength).then((order) => ({ order })));
+
   const giveUp = (reason) => {
     if (broken) return;
     broken = true;
     console.warn('Worker が使えないのでメインスレッドに切り替えます。', reason);
-    for (const [, entry] of pending) {
-      const run = entry.kind === 'prepare'
-        ? fallback.prepare(entry.points)
-        : fallback.reveal(entry.points, entry.targetLength).then((order) => ({ order }));
-      run.then(entry.resolve);
-    }
+    for (const [, entry] of pending) viaFallback(entry).then(entry.resolve);
     pending.clear();
   };
 
@@ -151,10 +172,7 @@ function createEngine() {
 
   const send = (message, entry) => new Promise((resolve) => {
     if (broken) {
-      const run = entry.kind === 'prepare'
-        ? fallback.prepare(entry.points)
-        : fallback.reveal(entry.points, entry.targetLength).then((order) => ({ order }));
-      run.then(resolve);
+      viaFallback(entry).then(resolve);
       return;
     }
     const id = nextId++;
@@ -199,9 +217,16 @@ function renderHud() {
   const run = state.run;
   el.stage.textContent = run ? run.stage : 1;
   el.score.textContent = number.format(run ? run.score : 0);
-  const lives = run ? run.lives : MAX_LIVES;
-  el.lives.innerHTML = Array.from({ length: MAX_LIVES }, (_, i) =>
-    i < lives ? '<span>♥</span>' : '<span class="lost">♥</span>').join('');
+  renderTime();
+}
+
+function renderTime() {
+  const seconds = state.run ? state.run.time : START_SECONDS;
+  el.time.textContent = formatTime(seconds);
+  const level = seconds < 10 ? 'danger' : seconds < 25 ? 'warn' : '';
+  el.time.className = `hud-time ${level}`;
+  el.timebar.className = `timebar-fill ${level}`;
+  el.timebar.style.width = `${Math.max(0, Math.min(1, seconds / START_SECONDS)) * 100}%`;
 }
 
 // ---------------------------------------------------------------------------
@@ -238,10 +263,13 @@ async function startStage() {
   state.dist = result.dist;
 
   const total = state.sorted.length;
-  state.bandWidth = bandWidthFor(run.stage, total);
+  state.windowRatio = windowRatioFor(run.stage);
   const rng = makeRng((stage.seed ^ 0x5bf03635) >>> 0);
-  state.bandLo = bandStartFor(rng, total, state.bandWidth);
-  state.bandHi = state.bandLo + state.bandWidth - 1;
+  const band = buildBand(state.sorted, state.windowRatio, rng);
+  state.bandLo = band.lo;
+  state.bandHi = band.hi;
+  state.bandMin = state.sorted[band.lo];
+  state.bandMax = state.sorted[band.hi];
 
   histogram.setData({
     sorted: state.sorted,
@@ -252,9 +280,10 @@ async function startStage() {
     bandHi: state.bandHi,
   });
 
+  const width = state.bandHi - state.bandLo + 1;
   el.questBand.textContent = `第 ${number.format(state.bandLo + 1)} 〜 ${number.format(state.bandHi + 1)} 位`;
   el.questSub.textContent =
-    `n = ${stage.n} ・ 全 ${number.format(total)} 通り中 — この帯に入る長さの経路をつくれ`;
+    `n = ${stage.n} ・ 全 ${number.format(total)} 通り中 ${number.format(width)} 通りが該当`;
   el.axisMin.textContent = result.min.toFixed(1);
   el.axisMax.textContent = result.max.toFixed(1);
   el.boardHint.classList.toggle('hidden', run.stage > 1);
@@ -262,12 +291,6 @@ async function startStage() {
   state.phase = 'playing';
   hideScreens();
   refreshPath();
-}
-
-function factorialHalf(n) {
-  let f = 1;
-  for (let i = 2; i <= n; i++) f *= i;
-  return f / 2;
 }
 
 function refreshPath() {
@@ -284,11 +307,7 @@ function refreshPath() {
     el.distNow.style.opacity = '0.5';
   }
 
-  if (complete) {
-    histogram.setCurrent(canonicalPathLength(dist, stage.n, order));
-  } else {
-    histogram.setCurrent(null);
-  }
+  histogram.setCurrent(complete ? canonicalPathLength(dist, stage.n, order) : null);
 
   const out = histogram.outOfZoom;
   if (!complete) {
@@ -305,9 +324,10 @@ function refreshPath() {
     el.zoomHint.className = 'zoom-hint';
   }
 
-  el.btnSubmit.disabled = !complete || state.phase !== 'playing';
-  el.btnUndo.disabled = order.length === 0 || state.phase !== 'playing';
-  el.btnClear.disabled = order.length === 0 || state.phase !== 'playing';
+  const playable = state.phase === 'playing';
+  el.btnSubmit.disabled = !complete || !playable;
+  el.btnUndo.disabled = order.length === 0 || !playable;
+  el.btnClear.disabled = order.length === 0 || !playable;
 }
 
 // ---------------------------------------------------------------------------
@@ -327,28 +347,30 @@ async function submit() {
   const length = canonicalPathLength(dist, stage.n, order);
   const verdict = judge(sorted, bandLo, bandHi, length);
   const rank = rankOf(sorted, length);
-  const total = sorted.length;
+  const run = state.run;
 
   let gain = 0;
+  let seconds = 0;
   if (verdict === JUDGE_IN) {
     gain = scoreFor({
       n: stage.n,
-      width: state.bandWidth,
-      total,
-      rank,
-      bandLo,
-      bandHi,
-      combo: state.run.combo,
+      windowRatio: state.windowRatio,
+      length,
+      bandMin: state.bandMin,
+      bandMax: state.bandMax,
+      combo: run.combo,
     });
-    state.run.succeed(gain, stage.n);
+    seconds = bonusSecondsFor(run.stage);
+    run.succeed(gain, stage.n, seconds);
     sound.success();
   } else {
-    state.run.fail();
+    seconds = -WRONG_PENALTY;
+    run.fail();
     sound.fail();
   }
 
   renderHud();
-  showJudge(verdict, rank, total, length, gain);
+  showJudge(verdict, rank, sorted.length, length, gain, seconds);
 
   if (verdict !== JUDGE_IN) {
     const center = (bandLo + bandHi) >> 1;
@@ -358,7 +380,7 @@ async function submit() {
   }
 }
 
-function showJudge(verdict, rank, total, length, gain) {
+function showJudge(verdict, rank, total, length, gain, seconds) {
   const inBand = verdict === JUDGE_IN;
   el.judgeVerdict.className = `judge-verdict ${verdict}`;
   el.judgeVerdict.textContent = inBand
@@ -371,14 +393,17 @@ function showJudge(verdict, rank, total, length, gain) {
     `長さ ${length.toFixed(2)} → <strong>第 ${number.format(rank)} 位</strong> / ${number.format(total)}<br>` +
     `目標は 第 ${number.format(state.bandLo + 1)} 〜 ${number.format(state.bandHi + 1)} 位`;
 
+  el.judgeTime.className = `judge-time ${seconds >= 0 ? 'plus' : 'minus'}`;
+  el.judgeTime.textContent = `${seconds >= 0 ? '+' : '−'}${Math.abs(seconds)} 秒`;
+
   if (inBand) {
-    const mul = Math.min(2, 1 + 0.1 * (state.run.combo - 1));
+    const multiplier = comboMultiplier(state.run.combo - 1);
     el.judgeGain.textContent =
-      `+${number.format(gain)}` + (state.run.combo > 1 ? `　(×${mul.toFixed(1)} コンボ)` : '');
+      `+${number.format(gain)}` + (state.run.combo > 1 ? `　(×${multiplier.toFixed(1)} コンボ)` : '');
     el.judgeGain.style.color = 'var(--good)';
   } else {
-    el.judgeGain.textContent = 'ライフ −1　（正解例を表示中）';
-    el.judgeGain.style.color = 'var(--short)';
+    el.judgeGain.textContent = '正解例を表示中';
+    el.judgeGain.style.color = 'var(--text-dim)';
   }
 
   el.btnNext.textContent = state.run.isOver ? '結果を見る' : '次へ';
@@ -402,24 +427,27 @@ function next() {
 function showResult() {
   const run = state.run;
   state.phase = 'result';
+  state.requestId++; // 進行中の正解例リクエストを打ち切る
+  board.clearGhost();
   sound.gameover();
   const isBest = saveBest(run.score);
 
   el.resultScore.textContent = number.format(run.score);
   el.resultMeta.textContent =
-    `${run.cleared} ステージ突破 ・ 最大 n = ${run.maxN || '—'}`;
+    `${run.cleared} 問正解 ・ 最大 n = ${run.maxN || '—'} ・ 生存 ${formatDuration(run.elapsed)}`;
   const best = loadBest();
   el.resultBest.textContent = isBest ? '自己ベスト更新' : best > 0 ? `自己ベスト ${number.format(best)}` : '';
 
   const url = location.origin + location.pathname;
   const text =
-    `良かったこの距離で\n` +
-    `SCORE ${number.format(run.score)} / ${run.cleared}ステージ突破` +
+    '良かったこの距離で\n' +
+    `SCORE ${number.format(run.score)} / ${run.cleared}問正解` +
     (run.maxN ? ` (n=${run.maxN})` : '') +
-    `\n#良かったこの距離で`;
+    `\n生存 ${formatDuration(run.elapsed)}\n#良かったこの距離で`;
   el.btnShare.href =
     `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
 
+  renderTime();
   show(el.screenResult);
 }
 
@@ -507,6 +535,14 @@ let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(60, now - lastFrame);
   lastFrame = now;
+
+  // 時間が減るのはプレイ中だけ。判定画面や計算待ちでは止まる。
+  if (state.phase === 'playing' && state.run) {
+    state.run.tick(dt / 1000);
+    renderTime();
+    if (state.run.isOver) showResult();
+  }
+
   board.step(dt);
   board.render();
   histogram.render();

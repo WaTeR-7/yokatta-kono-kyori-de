@@ -154,6 +154,42 @@ export function rankOf(sortedLengths, value) {
   return lowerBound(sortedLengths, value) + 1;
 }
 
+/**
+ * 目標帯を作る。
+ *
+ * 長さの窓（分布全体の windowRatio 倍）を先に決め、それに収まる順位の範囲を
+ * 逆算する。こうすると出題位置によらず「どれくらい細かく合わせる必要があるか」が
+ * 一定になる。順位の幅の方が問ごとに変わる。
+ *
+ * 分布の極端な裾に出ると「最短経路を厳密に当てろ」という別の問題になってしまうので、
+ * 帯の中心は上下 2% を避けて選ぶ。
+ */
+export function buildBand(sortedLengths, windowRatio, rng) {
+  const total = sortedLengths.length;
+  const span = sortedLengths[total - 1] - sortedLengths[0];
+  const half = (span * windowRatio) / 2;
+
+  const margin = Math.max(2, Math.floor(total * 0.05));
+  const pivot = Math.min(total - 1, margin + Math.floor(rng() * Math.max(1, total - margin * 2)));
+  const center = sortedLengths[pivot];
+
+  let lo = lowerBound(sortedLengths, center - half);
+  let hi = lowerBound(sortedLengths, center + half) - 1;
+
+  // 分布の裾は経路が疎で、固定幅の窓にほとんど入らないことがある。
+  // n=5（全60通り）だと「最長経路を厳密に当てろ」になってしまうので下限を設ける。
+  // 経路数が多い段では実際の幅がこれを大きく上回るため、難易度には影響しない。
+  const minWidth = Math.max(5, Math.round(total * 0.0005));
+  if (hi < lo + minWidth - 1) hi = lo + minWidth - 1;
+  if (hi > total - 1) {
+    hi = total - 1;
+    lo = Math.max(0, hi - minWidth + 1);
+  }
+  if (lo < 0) lo = 0;
+
+  return { lo, hi };
+}
+
 export const JUDGE_IN = 'in';
 export const JUDGE_SHORT = 'short';
 export const JUDGE_LONG = 'long';

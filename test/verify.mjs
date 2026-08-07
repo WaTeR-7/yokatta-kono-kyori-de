@@ -8,6 +8,7 @@
 
 import assert from 'node:assert/strict';
 import {
+  buildBand,
   buildDistanceMatrix,
   canonicalOrder,
   canonicalPathLength,
@@ -26,14 +27,15 @@ import {
 } from '../src/enumerate.js';
 import {
   LADDER,
-  bandStartFor,
-  bandWidthFor,
+  bonusSecondsFor,
   buildStage,
   difficultyFor,
   generatePoints,
   makeRng,
   stageSeed,
+  windowRatioFor,
 } from '../src/generator.js';
+import { START_SECONDS, Run, WRONG_PENALTY, comboMultiplier, scoreFor } from '../src/game.js';
 
 let passed = 0;
 let failed = 0;
@@ -218,9 +220,7 @@ test('逆順の経路は同じ順位・同じ判定になる (n=7)', () => {
   const n = 7;
   const { dist, sorted } = setup(n, 5007);
   const rng = makeRng(5150);
-  const width = bandWidthFor(4, sorted.length);
-  const lo = bandStartFor(rng, sorted.length, width);
-  const hi = lo + width - 1;
+  const { lo, hi } = buildBand(sorted, windowRatioFor(4), rng);
   for (let k = 0; k < 300; k++) {
     const order = shuffledOrder(n, rng);
     const reversed = [...order].reverse();
@@ -239,9 +239,10 @@ section('6. 出題の可解性 — 帯内の経路が実在し、復元できる
 // n=9,10 は列挙が重いのでシード数を絞る（それでも全段を必ず1回は通す）
 const SEEDS_BY_N = { 5: 40, 6: 40, 7: 25, 8: 12, 9: 4, 10: 2 };
 
-for (const rule of LADDER) {
-  const stage = Number.isFinite(rule.upTo) ? rule.upTo : 12;
-  const n = rule.n;
+const STAGES = [...LADDER.map((r) => (Number.isFinite(r.upTo) ? r.upTo : 14)), 20, 40];
+
+for (const stage of STAGES) {
+  const n = difficultyFor(stage).n;
   const seedCount = SEEDS_BY_N[n];
   test(`ステージ${stage} (n=${n}) — ${seedCount}シードで帯内の経路を復元できる`, () => {
     for (let s = 0; s < seedCount; s++) {
@@ -250,14 +251,24 @@ for (const rule of LADDER) {
       const dist = buildDistanceMatrix(points);
       const sorted = enumerateSortedLengths(dist, n);
 
-      const width = bandWidthFor(stage, sorted.length);
-      assert.ok(width >= 1, `帯の幅が 0 になった (stage=${stage})`);
-      assert.ok(width <= sorted.length, '帯が全体より広い');
-
+      const ratio = windowRatioFor(stage);
       const rng = makeRng(seed ^ 0x5bf03635);
-      const lo = bandStartFor(rng, sorted.length, width);
-      const hi = lo + width - 1;
+      const { lo, hi } = buildBand(sorted, ratio, rng);
+
       assert.ok(lo >= 0 && hi < sorted.length, `帯が範囲外 [${lo}, ${hi}]`);
+      assert.ok(hi >= lo, `帯が空 [${lo}, ${hi}]`);
+
+      // 長さの窓は指定値を超えない（疎な領域では狭くなることはある）
+      const span = sorted[sorted.length - 1] - sorted[0];
+      const realised = sorted[hi] - sorted[lo];
+      const minWidth = Math.max(5, Math.round(sorted.length * 0.0005));
+      const forced = hi - lo + 1 <= minWidth;
+      if (!forced) {
+        assert.ok(
+          realised <= span * ratio * 1.0001,
+          `窓が指定より広い: ${realised} > ${span * ratio} (stage=${stage})`,
+        );
+      }
 
       const center = (lo + hi) >> 1;
       const target = sorted[center];
@@ -272,6 +283,35 @@ for (const rule of LADDER) {
     }
   });
 }
+
+test('長さの窓が出題位置によらず揃っている (n=8)', () => {
+  const { sorted } = setup(8, 6108);
+  const span = sorted[sorted.length - 1] - sorted[0];
+  const ratio = windowRatioFor(7);
+  const widths = [];
+  for (let s = 0; s < 200; s++) {
+    const { lo, hi } = buildBand(sorted, ratio, makeRng(s * 7919 + 3));
+    widths.push(sorted[hi] - sorted[lo]);
+  }
+  const target = span * ratio;
+  const min = Math.min(...widths);
+  const max = Math.max(...widths);
+  // 順位幅固定だと中央と裾で 2〜3 倍ばらついていた。長さで切ればほぼ一定になる。
+  assert.ok(max <= target * 1.0001, `窓が指定を超えた: ${max} > ${target}`);
+  assert.ok(min >= target * 0.9, `窓のばらつきが大きい: ${min} 〜 ${max} (目標 ${target})`);
+});
+
+test('難易度は単調に厳しくなり、下限で止まる', () => {
+  let previous = Infinity;
+  for (let stage = 1; stage <= 80; stage++) {
+    const ratio = windowRatioFor(stage);
+    assert.ok(ratio <= previous + 1e-12, `ステージ${stage}で窓が広がった`);
+    assert.ok(ratio >= 0.002 - 1e-12, `ステージ${stage}で下限を割った: ${ratio}`);
+    previous = ratio;
+  }
+  assert.equal(windowRatioFor(200), 0.002, '十分先で下限に張り付くはず');
+  assert.ok(difficultyFor(200).n <= 10, 'n の上限は 10');
+});
 
 test('判定は長さの区間で行われ、両端も帯内とみなす (n=6)', () => {
   const n = 6;
@@ -346,6 +386,79 @@ for (const n of [5, 6, 7, 8]) {
     assert.ok(min < max);
   });
 }
+
+// ---------------------------------------------------------------------------
+
+section('9. 時間とスコア');
+
+test('ランは持ち時間から始まり、減るのはプレイ中だけ', () => {
+  const run = new Run(1);
+  assert.equal(run.time, START_SECONDS);
+  assert.equal(run.isOver, false);
+  run.tick(10);
+  assert.equal(run.time, START_SECONDS - 10);
+  assert.equal(run.elapsed, 10);
+});
+
+test('正解で時間とスコアが増え、コンボが伸びる', () => {
+  const run = new Run(1);
+  run.succeed(500, 7, 14);
+  assert.equal(run.score, 500);
+  assert.equal(run.combo, 1);
+  assert.equal(run.cleared, 1);
+  assert.equal(run.maxN, 7);
+  assert.equal(run.time, START_SECONDS + 14);
+});
+
+test('誤提出は時間を払って盤面から降りる手段になる', () => {
+  const run = new Run(1);
+  run.succeed(100, 5, 10);
+  run.fail();
+  assert.equal(run.combo, 0, 'コンボは切れる');
+  assert.equal(run.missed, 1);
+  assert.equal(run.time, START_SECONDS + 10 - WRONG_PENALTY);
+  assert.equal(run.score, 100, 'スコアは減らない');
+});
+
+test('時間がゼロになったら終了', () => {
+  const run = new Run(1);
+  run.tick(START_SECONDS - 0.5);
+  assert.equal(run.isOver, false);
+  run.tick(0.5);
+  assert.equal(run.isOver, true);
+});
+
+test('全ステージで加算秒が正で、単調に増える', () => {
+  let previous = 0;
+  for (let stage = 1; stage <= 40; stage++) {
+    const bonus = bonusSecondsFor(stage);
+    assert.ok(bonus > 0, `ステージ${stage}の加算秒が 0 以下`);
+    assert.ok(bonus >= previous, `ステージ${stage}で加算秒が減った`);
+    previous = bonus;
+  }
+});
+
+test('窓が狭いほど高得点', () => {
+  const common = { n: 8, length: 100, bandMin: 99, bandMax: 101, combo: 0 };
+  const wide = scoreFor({ ...common, windowRatio: 0.1 });
+  const narrow = scoreFor({ ...common, windowRatio: 0.01 });
+  assert.ok(narrow > wide, `narrow=${narrow} wide=${wide}`);
+});
+
+test('帯の中央に近いほど高得点、端でボーナスは消える', () => {
+  const common = { n: 8, windowRatio: 0.04, bandMin: 90, bandMax: 110, combo: 0 };
+  const center = scoreFor({ ...common, length: 100 });
+  const edge = scoreFor({ ...common, length: 110 });
+  assert.ok(center > edge, `center=${center} edge=${edge}`);
+  assert.equal(center - edge, 200, '中央ボーナスの最大は 200');
+});
+
+test('コンボ倍率は 2.0 で頭打ち', () => {
+  assert.equal(comboMultiplier(0), 1);
+  assert.ok(Math.abs(comboMultiplier(5) - 1.5) < 1e-12);
+  assert.equal(comboMultiplier(10), 2);
+  assert.equal(comboMultiplier(100), 2);
+});
 
 // ---------------------------------------------------------------------------
 

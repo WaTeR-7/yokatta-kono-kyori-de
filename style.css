@@ -75,8 +75,49 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.lives { font-size: 15px; letter-spacing: 3px; color: var(--short); }
-.lives .lost { color: var(--line); }
+.hud-time {
+  font-family: var(--mono);
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--good);
+  transition: color 0.25s;
+}
+
+.hud-time.warn { color: var(--target); }
+.hud-time.danger { color: var(--short); animation: blink 0.7s steps(2, start) infinite; }
+
+@keyframes blink { 50% { opacity: 0.35; } }
+
+.timebar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+  margin: -4px 2px 0;
+}
+
+.timebar-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--good);
+  transform-origin: left;
+  transition: background 0.25s;
+}
+
+.timebar-fill.warn { background: var(--target); }
+.timebar-fill.danger { background: var(--short); }
+
+/* 時間の増減を判定画面で見せる */
+.judge-time {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.judge-time.plus { color: var(--good); }
+.judge-time.minus { color: var(--short); }
 
 /* ---------- お題 ---------- */
 
