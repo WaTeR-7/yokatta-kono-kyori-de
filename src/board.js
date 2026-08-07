@@ -116,6 +116,8 @@ export class BoardView {
     if (this.ghost) this.#drawGhostPath(g);
     this.#drawPath(g);
     this.#drawPoints(g);
+    // 端点の印は点より前面に置く。点に隠れると読めないため。
+    if (this.ghost) this.#drawGhostEndpoints(g);
   }
 
   #drawGrid(g) {
@@ -203,6 +205,52 @@ export class BoardView {
     ctx.lineWidth = 2.4;
     trace(remaining);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * 正解例の始点と終点。どちらから辿る経路なのかが分からないと
+   * 自分の経路と見比べられないので、ラベルで明示する。
+   */
+  #drawGhostEndpoints(g) {
+    const order = this.ghost;
+    if (!order.length) return;
+    this.#drawGhostEndpoint(this.toScreen(this.points[order[0]]), '始', g);
+    if (order.length > 1) {
+      this.#drawGhostEndpoint(this.toScreen(this.points[order[order.length - 1]]), '終', g);
+    }
+  }
+
+  #drawGhostEndpoint(p, label, g) {
+    const ctx = this.ctx;
+    ctx.save();
+
+    ctx.strokeStyle = this.colors.ghost;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, g.radius + 5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const fontSize = Math.max(10, Math.round(g.radius * 0.8));
+    ctx.font = `700 ${fontSize}px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const boxHeight = fontSize + 7;
+    const boxWidth = ctx.measureText(label).width + 11;
+    // 盤面の上端にかかるときは下側に逃がす
+    const above = p.y - g.radius - 8 - boxHeight / 2 > 2;
+    const y = above ? p.y - g.radius - 8 - boxHeight / 2 : p.y + g.radius + 8 + boxHeight / 2;
+    const x = p.x - boxWidth / 2;
+
+    ctx.fillStyle = this.colors.ghost;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y - boxHeight / 2, boxWidth, boxHeight, 3);
+    else ctx.rect(x, y - boxHeight / 2, boxWidth, boxHeight);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, p.x, y + 0.5);
     ctx.restore();
   }
 
