@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+
+# 撮影/検証用の一時ファイル
+_shot.html
+_dbg.html

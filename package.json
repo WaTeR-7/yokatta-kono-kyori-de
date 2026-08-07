@@ -1,0 +1,12 @@
+{
+  "name": "yokatta-kono-kyori-de",
+  "version": "1.0.0",
+  "description": "最短でも最長でもない、ちょうどこの距離を探すハミルトン経路パズル",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/verify.mjs",
+    "serve": "python3 -m http.server 8000"
+  },
+  "license": "MIT"
+}
