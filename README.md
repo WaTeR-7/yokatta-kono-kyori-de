@@ -153,7 +153,7 @@ n=11 はモバイルで現実的でないため、**n の上限は 10** とし�
 依存パッケージはありません。ビルドも不要です。
 
 ```sh
-node test/verify.mjs      # 検証スクリプト（33 項目）
+node test/verify.mjs      # 検証スクリプト（50 項目）
 python3 -m http.server    # http://localhost:8000/ で起動
 ```
 
