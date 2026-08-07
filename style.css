@@ -189,20 +189,6 @@ body {
   -webkit-touch-callout: none;
 }
 
-.board-overlay {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  font-size: 11px;
-  color: var(--text-faint);
-  pointer-events: none;
-  transition: opacity 0.35s;
-  white-space: nowrap;
-}
-
-.board-overlay.hidden { opacity: 0; }
-
 /* ---------- 分布 ---------- */
 
 .dist {

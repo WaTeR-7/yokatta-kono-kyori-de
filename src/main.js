@@ -46,7 +46,6 @@ const el = {
   score: $('hud-score'),
   questBand: $('quest-band'),
   board: $('board'),
-  boardHint: $('board-hint'),
   histFull: $('hist-full'),
   distNow: $('dist-now'),
   zoomHint: $('zoom-hint'),
@@ -281,11 +280,6 @@ async function startStage() {
   });
 
   el.questBand.textContent = `第 ${number.format(state.bandLo + 1)} 〜 ${number.format(state.bandHi + 1)} 位`;
-  // 近い点から順につなぐのが本能なので、序盤は「わざと遠回りする」と明示的に伝える
-  el.boardHint.textContent = run.stage === 1
-    ? '点を順につないで経路をつくる'
-    : '最短につなぐと帯より短くなりがち。わざと遠回りを';
-  el.boardHint.classList.toggle('hidden', run.stage > 4);
 
   state.phase = 'playing';
   hideScreens();
@@ -460,7 +454,6 @@ el.board.addEventListener('pointerdown', (event) => {
   const index = board.hitTest(event.clientX - rect.left, event.clientY - rect.top);
   if (index == null) return;
 
-  el.boardHint.classList.add('hidden');
   const at = state.order.indexOf(index);
   if (at === -1) {
     if (state.order.length >= state.stage.n) return;
